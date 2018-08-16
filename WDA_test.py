@@ -15,7 +15,7 @@ initialMaximumHeight = 100
 numberOfRuns = 1
 numberOfDrops = 100
 numberOfSteps = 64
-displaySurface = False
+displaySurface = True
 displayTrail = False
 #profileState
 
