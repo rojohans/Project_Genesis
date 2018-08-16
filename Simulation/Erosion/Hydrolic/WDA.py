@@ -75,6 +75,9 @@ class WaterDrop():
         self.yPreviousStep = None
         self.zPreviousStep = None
 
+        self.adjacentTilesPrevious = None # Used for deposition.
+        self.adjacentHeightsPrevious = None # Used for deposition.
+
         self.storeTrail = storeTrail
         if self.storeTrail:
             self.trailData = np.zeros((3, numberOfSteps))
@@ -110,6 +113,10 @@ class WaterDrop():
         self.yPreviousStep = self.y
         self.zPreviousStep = self.z
 
+
+        # Stores the adjacentTiles and heights for later use when doing deposition.
+        self.adjacentTilesPrevious = self.adjacentTiles
+        self.adjacentHeightsPrevious = self.adjacentHeights
 
         # Stores coordinates in array in order to visualize.
         if self.storeTrail:
@@ -225,6 +232,12 @@ class WaterDrop():
 
         if depositAll:
             #print('DEPOSIT ALL')
+            print([self.x, self.y])
+            print(self.heightDifference)
+            print(self.adjacentTilesPrevious)
+            print(self.adjacentHeightsPrevious)
+            print(' ')
+
             pass
         else:
             #print('DEPOSIT')

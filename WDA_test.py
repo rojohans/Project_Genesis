@@ -14,7 +14,7 @@ import cProfile
 mapSize = 512
 initialMaximumHeight = 100
 numberOfRuns = 1
-numberOfDrops = 100
+numberOfDrops = 1
 numberOfSteps = 64
 
 displaySurface = False
