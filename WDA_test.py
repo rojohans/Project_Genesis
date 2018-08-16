@@ -8,6 +8,7 @@ import Simulation.Noise as Noise
 import Visualization
 import numpy as np
 import time # Used to time code, like tic-toc.
+import cProfile
 
 
 mapSize = 512
@@ -15,9 +16,10 @@ initialMaximumHeight = 100
 numberOfRuns = 1
 numberOfDrops = 100
 numberOfSteps = 64
-displaySurface = True
+
+displaySurface = False
 displayTrail = False
-#profileState
+performProfiling = False
 
 
 maximumErosionRadius = 10  # This determines how many erosion templates should be created.
@@ -44,19 +46,9 @@ WDA.WaterDrop.InitializeTemplates(maximumErosionRadius)
 WDA.WaterDrop.LinkToHeightMap(heightMap)
 
 
-
-
-#import cProfile
-#pr = cProfile.Profile()
-#pr.enable()
-
-
-#drops[0].Move()
-#drops[0].UpdateVelocity()
-#for i in range(64000):
-#    drops[0].Erode()
-#pr.disable()
-#pr.print_stats(2)
+if performProfiling:
+    pr = cProfile.Profile()
+    pr.enable()
 
 tic = time.time()
 for iRun in range(numberOfRuns):
@@ -70,8 +62,10 @@ for iRun in range(numberOfRuns):
 toc = time.time()
 print('elapsed time : %s sec' % (toc - tic))
 
-#pr.disable()
-#pr.print_stats(2)
+if performProfiling:
+    pr.disable()
+    pr.print_stats(2)
+
 
 if displaySurface:
     mapSurface.Update(heightMap)
