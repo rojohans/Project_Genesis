@@ -61,6 +61,8 @@ class Visualizer3D():
     '''
     def __init__(self, window):
         self.axes = window.axes
+        self.axes.set_xlabel('X')
+        self.axes.set_ylabel('Y')
 
 
     def Update(self):
@@ -89,6 +91,7 @@ class Surf(Visualizer3D):
 
 
         self.surface = self.axes.plot_surface(x, y, z, cmap = cm.gray, linewidth = 0, antialiased = False)
+        # rcount=500, ccount=500 # use these parameters for the plot_surface() for finer resolution.
         if self.visible:
             plt.pause(0.0000001)
 
