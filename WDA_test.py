@@ -24,8 +24,8 @@ import cProfile
 
 mapSize = 512
 initialMaximumHeight = 100
-numberOfRuns = 1000
-numberOfDrops = 1 # THIS NEEDS TO BE 1 TO PREVENT -INF HOLES.
+numberOfRuns = 10
+numberOfDrops = 1000 # THIS NEEDS TO BE 1 TO PREVENT -INF HOLES.
 numberOfSteps = 64
 
 displaySurface = True
@@ -44,8 +44,14 @@ print('Noise has been generated')
 
 # Create visualization objects
 if displaySurface:
-    initialWindow = Visualization.Window3D(xLim = [0, mapSize], yLim = [0, mapSize], zLim = [0, initialMaximumHeight], view ='topdown')
-    mainWindow = Visualization.Window3D(xLim = [0, mapSize], yLim = [0, mapSize], zLim = [0, initialMaximumHeight], view ='topdown')
+    initialWindow = Visualization.Window3D(xLim = [0, mapSize],
+                                           yLim = [0, mapSize],
+                                           zLim = [0, initialMaximumHeight],
+                                           view ='topdown')
+    mainWindow = Visualization.Window3D(xLim = [0, mapSize],
+                                        yLim = [0, mapSize],
+                                        zLim = [0, initialMaximumHeight],
+                                        view ='topdown')
     initialMapSurface = Visualization.Surf(initialWindow, z = heightMap)
     mapSurface = Visualization.Surf(mainWindow, z = heightMap)
     if displayTrail:
@@ -69,23 +75,31 @@ for iRun in range(numberOfRuns):
                            numberOfSteps=numberOfSteps,
                            storeTrail=displayTrail,
                            inertia=0.7,
-                           capacityMultiplier=200,
-                           depositionRate=0.01,
-                           erosionRate=0.01,
+                           capacityMultiplier=30,
+                           depositionRate=0.9,
+                           erosionRate=0.1,
                            erosionRadius=4) for index in range(numberOfDrops)]
+    WDA.WaterDrop.LinkToDrops(drops)
+    WDA.WaterDrop.heightMapChange = np.zeros((mapSize, mapSize))
+    WDA.WaterDrop.upperDepositionLimit = 20
+    #WDA.WaterDrop.upperErosionLimit = # Not used yet.
+
+
     # Move and animate the drops
     for iStep in range(numberOfSteps):
+        #print(len(drops))
         for drop in drops:
             drop()
-    #if displaySurface:
-    #    mapSurface.Update(heightMap)
-            if drop.killed:
-                break
-        if drop.killed:
-            break
+    for drop in drops:
+        drop.Deposit(depositAll=True)
+    heightMap += WDA.WaterDrop.heightMapChange
 toc = time.time()
 print('elapsed time : %s sec' % (toc - tic))
 print('Amount of material after simulation: %s' % np.sum(heightMap))
+
+print(np.min(WDA.WaterDrop.heightMapChange))
+print(np.max(WDA.WaterDrop.heightMapChange))
+print(np.sum(WDA.WaterDrop.heightMapChange))
 
 print(np.min(heightMap))
 print(np.max(heightMap))
@@ -98,6 +112,7 @@ if performProfiling:
 
 if displaySurface:
     mapSurface.Update(heightMap)
+    #mapSurface.Update(WDA.WaterDrop.heightMapChange)
 
 
 # The trails of the drops are visualized.

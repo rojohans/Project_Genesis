@@ -22,6 +22,11 @@ class WaterDrop():
     erosionTileTemplate = []
 
     heightMap = []
+    heightMapChange = []
+    dropList = [] # Used when drops are to "kill" themself.
+
+    upperDepositionLimit = []
+    upperErosionLimit = []
 
 
     def __init__(self, gridSize, x = None, y = None, inertia = 0.3, gravity = 10, evaporationRate = 1.02,
@@ -103,7 +108,6 @@ class WaterDrop():
         self.erosionRadius = erosionRadius
         self.evaporationRate = evaporationRate
 
-        self.killed = False # A more sophisticated "killing" of the drop should occur.
 
 
     def StoreState(self):
@@ -274,24 +278,31 @@ class WaterDrop():
         heightDifferences = heightDifferences[heightDifferences > 0]
 
 
+
+
         # Determines how much sediment to deposit.
         if depositAll:
             #print('DEPOSIT ALL')
             if np.sum(heightDifferences) > self.sedimentAmount:
                 # All sediment is deposited. (The hole can not be completely filled.)
-                depositionAmount = self.sedimentAmount
+                depositionAmount = np.min((self.sedimentAmount, self.upperDepositionLimit))
             else:
                 # Only a part of the sediment is deposited. (Enough to fill the hole.)
-                depositionAmount = np.sum(heightDifferences)
-            self.killed = True
+                depositionAmount = np.min((np.sum(heightDifferences), self.upperDepositionLimit))
+            #depositionAmount = self.sedimentAmount
+            #epositionAmount = (self.sedimentAmount - self.sedimentCapacity) * self.depositionRate
+            self.dropList.remove(self)
         else:
             #print('DEPOSIT')
-            depositionAmount = (self.sedimentAmount-self.sedimentCapacity)*self.depositionRate
+            depositionAmount = np.min(((self.sedimentAmount-self.sedimentCapacity)*self.depositionRate,
+                                      self.upperDepositionLimit))
 
 
         # Material is added to the map and sediment is removed from the drop.
-        self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] +=\
-            depositionAmount*heightDifferences/np.sum(heightDifferences)
+        #self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] +=\
+        #    depositionAmount*heightDifferences/np.sum(heightDifferences)
+        self.heightMapChange[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
+            depositionAmount * heightDifferences / np.sum(heightDifferences)
         self.sedimentAmount -= depositionAmount
 
 
@@ -315,14 +326,33 @@ class WaterDrop():
         #    ! ! ! TAKE ALL EROSION TILES INTO ACCOUNT, OR JUST THE EDGES. ! ! !
         '''
 
+        #a = self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)]
+        #b = np.min(a)
+
+        #print(b)
+        #print(tilesToErode[a == b])
+        #print(self.erosionWeightTemplate[self.erosionRadius][a == b])
+        #print(self.zPreviousStep-b)
+        #print(' ')
+        #c = self.erosionWeightTemplate[self.erosionRadius][a == b]*2
+        #print(c)
+        #print(' ')
+
+        #erosionAmount = np.min(((self.sedimentCapacity - self.sedimentAmount) * self.erosionRate,
+        #                        (self.zPreviousStep - b)/c[0]))
+        #print(erosionAmount)
+        #print(' ')
 
         # Determines the amount of material to remove.
-        erosionAmount = np.min(((self.sedimentCapacity-self.sedimentAmount)*self.erosionRate,-self.heightDifference))
+        #erosionAmount = np.min(((self.sedimentCapacity-self.sedimentAmount)*self.erosionRate,-self.heightDifference))
+        erosionAmount = (self.sedimentCapacity - self.sedimentAmount) * self.erosionRate
 
 
         # Material is removed from the map and sediment is added to the drop.
-        self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
-            erosionAmount*self.erosionWeightTemplate[self.erosionRadius]
+        #self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
+        #    erosionAmount*self.erosionWeightTemplate[self.erosionRadius]
+        self.heightMapChange[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -= \
+            erosionAmount * self.erosionWeightTemplate[self.erosionRadius]
         self.sedimentAmount += erosionAmount
 
 
@@ -369,19 +399,18 @@ class WaterDrop():
     def y(self, value):
         self._y = self._periodic(value)
 
-
     @classmethod
     def LinkToHeightMap(cls, heightMap):
         # This is used in order for the drop to have access to the heightmap. If the heightMap were to be changed by
         # one drop all other drops would also notice the change.
         cls.heightMap = heightMap
+        cls.heightMapChange = np.zeros(np.shape(heightMap))
 
-    def LinkToTemplates(self, templateList):
-        self.adjacentTilesTemplate = templateList[0]
-        self.erosionWeightTemplate = templateList[1]
-        self.erosionRowTemplate = templateList[2]
-        self.erosionColumnTemplate = templateList[3]
-
+    @classmethod
+    def LinkToDrops(cls, dropList):
+        # Gives all the drops access to the list of drops.
+        # Used when drops are to "kill" themself.
+        cls.dropList = dropList
 
     @classmethod
     def InitializeTemplates(cls, maximumErosionRadius):
@@ -486,5 +515,7 @@ class WaterDrop():
         self.z = self.CalculateZ()
         self.heightDifference = self.z - self.zPreviousStep
 '''
+
+
 
 

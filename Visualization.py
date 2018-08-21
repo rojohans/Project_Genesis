@@ -108,7 +108,7 @@ class Surf(Visualizer3D):
         # The old plot_surface object is removed and another is created. Instead of deleting the old object and
         # creating a new object the object should just be changed, not sure how to do this in python.
         self.surface.remove()
-        self.surface = self.axes.plot_surface(x, y, z, cmap=cm.gray, linewidth=0, antialiased=False)
+        self.surface = self.axes.plot_surface(x, y, z, cmap=cm.gray, linewidth=0, antialiased=False, rcount = 500, ccount = 500)
         plt.pause(0.0000001)
 
 
