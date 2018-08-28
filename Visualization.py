@@ -13,10 +13,15 @@ class Window3D():
     #
     '''
 
-    def __init__(self, xLim, yLim, zLim, view = 'custom'):
+    def __init__(self, xPosition, yPosition, width, height, xLim, yLim, zLim, view = 'custom'):
         self.figureWindow = plt.figure()
-        self.figureWindow.set_figwidth(9)
-        self.figureWindow.set_figheight(10)
+
+        # Sets the figures upper left corner to be at pixel (x, y). Also sets the figure dimensions.
+        self.figureWindow.canvas.manager.window.wm_geometry("+%d+%d" % (xPosition, yPosition))
+        self.figureWindow.set_figwidth(width)
+        self.figureWindow.set_figheight(height)
+
+
         self.axes = self.figureWindow.gca(projection = '3d')
         self.axes.set_aspect('equal')
 

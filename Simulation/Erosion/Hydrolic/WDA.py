@@ -22,16 +22,12 @@ class WaterDrop():
     erosionTileTemplate = []
 
     heightMap = []
-    heightMapChange = []
     dropList = [] # Used when drops are to "kill" themself.
 
-    upperDepositionLimit = []
-    upperErosionLimit = []
 
-
-    def __init__(self, gridSize, x = None, y = None, inertia = 0.3, gravity = 10, evaporationRate = 1.02,
+    def __init__(self, gridSize, x = None, y = None, inertia = 0.3, gravity = 10, evaporationRate = 0.02,
                  capacityMultiplier = 40, minimumSlope = 0.005, erosionRadius = 4, depositionRate = 0.1,
-                 erosionRate = 0.1, numberOfSteps = 64, storeTrail = False):
+                 erosionRate = 0.1, numberOfSteps = 64, maximumUnimprovedSteps = 1, storeTrail = False):
         '''
         :param gridSize:
         :param x:
@@ -87,6 +83,8 @@ class WaterDrop():
         if self.storeTrail:
             self.trailData = np.zeros((3, numberOfSteps))
             self.step = 0 # The index used to access the trailData array.
+        self.unimprovedSteps = 0
+        self.maximumUnimprovedSteps = maximumUnimprovedSteps
 
         self.direction = np.array([0,0])
         self.numberOfUnimprovedSteps = 0
@@ -106,7 +104,7 @@ class WaterDrop():
         self.depositionRate = depositionRate
         self.erosionRate = erosionRate
         self.erosionRadius = erosionRadius
-        self.evaporationRate = evaporationRate
+        self.evaporationRate = 1+evaporationRate
 
 
 
@@ -143,10 +141,6 @@ class WaterDrop():
         '''
 
 
-        '''
-        # Expand upon the CalculateZ() method. Values calculated in that method should be kept as to avoid
-        # calculating the same thing twice.
-        '''
 
 
         # The direction is updated
@@ -181,10 +175,8 @@ class WaterDrop():
         self.heightDifference = self.z - self.zPreviousStep
 
 
-
     def UpdateDirection(self, xDecimalPart, yDecimalPart, adjacentHeights):
         '''
-
         :param xDecimalPart:
         :param yDecimalPart:
         :param adjacentHeights:
@@ -219,7 +211,6 @@ class WaterDrop():
         '''
         The increase or decrease of the velocity is determined by the heightdifference which corresponds to the slope
         of the terrain. The maximum velocity possible is set to be the gravity value given in the constructor.
-
         :param self:
         :return:
         '''
@@ -265,7 +256,6 @@ class WaterDrop():
 
     def Deposit(self, depositAll = False):
         '''
-
         :param depositAll:
         :return:
         '''
@@ -278,31 +268,21 @@ class WaterDrop():
         heightDifferences = heightDifferences[heightDifferences > 0]
 
 
-
-
         # Determines how much sediment to deposit.
         if depositAll:
-            #print('DEPOSIT ALL')
             if np.sum(heightDifferences) > self.sedimentAmount:
                 # All sediment is deposited. (The hole can not be completely filled.)
-                depositionAmount = np.min((self.sedimentAmount, self.upperDepositionLimit))
+                depositionAmount = self.sedimentAmount
             else:
                 # Only a part of the sediment is deposited. (Enough to fill the hole.)
-                depositionAmount = np.min((np.sum(heightDifferences), self.upperDepositionLimit))
-            #depositionAmount = self.sedimentAmount
-            #epositionAmount = (self.sedimentAmount - self.sedimentCapacity) * self.depositionRate
-            self.dropList.remove(self)
+                depositionAmount = np.sum(heightDifferences)
         else:
-            #print('DEPOSIT')
-            depositionAmount = np.min(((self.sedimentAmount-self.sedimentCapacity)*self.depositionRate,
-                                      self.upperDepositionLimit))
+            depositionAmount = (self.sedimentAmount - self.sedimentCapacity) * self.depositionRate
 
 
         # Material is added to the map and sediment is removed from the drop.
-        #self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] +=\
-        #    depositionAmount*heightDifferences/np.sum(heightDifferences)
-        self.heightMapChange[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
-            depositionAmount * heightDifferences / np.sum(heightDifferences)
+        self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] +=\
+            depositionAmount*heightDifferences/np.sum(heightDifferences)
         self.sedimentAmount -= depositionAmount
 
 
@@ -311,7 +291,6 @@ class WaterDrop():
 
         :return:
         '''
-        #print('ERODE')
 
 
         # Select tiles to erode using templates.
@@ -321,43 +300,41 @@ class WaterDrop():
         tilesToErode[:, 0] = self._periodic(self.erosionTileTemplate[self.erosionRadius][:, 0] + yWholePart)
         tilesToErode[:, 1] = self._periodic(self.erosionTileTemplate[self.erosionRadius][:, 1] + xWholePart)
 
-        '''
-        #              ! ! ! INCREASE THE MAXIMUM EROSION LIMIT ! ! !
-        #    ! ! ! TAKE ALL EROSION TILES INTO ACCOUNT, OR JUST THE EDGES. ! ! !
-        '''
-
-        #a = self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)]
-        #b = np.min(a)
-
-        #print(b)
-        #print(tilesToErode[a == b])
-        #print(self.erosionWeightTemplate[self.erosionRadius][a == b])
-        #print(self.zPreviousStep-b)
-        #print(' ')
-        #c = self.erosionWeightTemplate[self.erosionRadius][a == b]*2
-        #print(c)
-        #print(' ')
-
-        #erosionAmount = np.min(((self.sedimentCapacity - self.sedimentAmount) * self.erosionRate,
-        #                        (self.zPreviousStep - b)/c[0]))
-        #print(erosionAmount)
-        #print(' ')
 
         # Determines the amount of material to remove.
-        #erosionAmount = np.min(((self.sedimentCapacity-self.sedimentAmount)*self.erosionRate,-self.heightDifference))
-        erosionAmount = (self.sedimentCapacity - self.sedimentAmount) * self.erosionRate
+        erosionAmount = np.min(((self.sedimentCapacity-self.sedimentAmount)*self.erosionRate,-self.heightDifference))
 
 
         # Material is removed from the map and sediment is added to the drop.
-        #self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
-        #    erosionAmount*self.erosionWeightTemplate[self.erosionRadius]
-        self.heightMapChange[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -= \
-            erosionAmount * self.erosionWeightTemplate[self.erosionRadius]
+        self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
+            erosionAmount*self.erosionWeightTemplate[self.erosionRadius]
         self.sedimentAmount += erosionAmount
+
+
+    def CheckImprovement(self):
+        '''
+        This method is used to determine if the drop should be terminated. This is the case if the drop has traveled
+        uphill for too long.
+        :return:
+        '''
+
+        if self.heightDifference > 0:
+            self.unimprovedSteps += 1
+            if self.unimprovedSteps >= self.maximumUnimprovedSteps:
+                self.Terminate()
+        else:
+            self.unimprovedSteps = 0
 
 
     def Evaporate(self):
         self.waterAmount /= self.evaporationRate
+
+    def Terminate(self):
+        '''
+        Before the drop is terminated all the sediment is deposited.
+        :return:
+        '''
+        self.dropList.remove(self)
 
 
     #
@@ -372,6 +349,7 @@ class WaterDrop():
         self.Move()
         self.UpdateVelocity()
         self.DepositOrErode()
+        self.CheckImprovement()
         self.Evaporate()
 
     def __repr__(self):
@@ -446,76 +424,6 @@ class WaterDrop():
             cls.erosionTileTemplate.append(erosionTiles)
 
             #cls.erosionRowTemplate.append(rowList[distances < radius])
-            #cls.erosionColumnTemplate.append(columnList[distances < radius])
 
-
-
-#=======================================================================================================================
-#=======================================================================================================================
-#=======================================================================================================================
-''' 
-   def Move(self):
-        # The whole and decimal parts of the coordinates are extracted.
-        xWholePart = np.floor(self.x)
-        yWholePart = np.floor(self.y)
-        xDecimalPart = self.x - xWholePart       # Should be left
-        yDecimalPart = self.y - yWholePart       # Should be left
-
-
-        # The adjacent tiles are selected using the adjacent tile template.
-        adjacentTiles = np.zeros((4, 2))
-        adjacentTiles[:, 0] = self._periodic(self.adjacentTilesTemplate[:, 0] + yWholePart)
-        adjacentTiles[:, 1] = self._periodic(self.adjacentTilesTemplate[:, 1] + xWholePart)
-
-
-        # Retrieves the map height for the adjacent tiles and interpolates the height of the water drop.
-        adjacentHeights = self.heightMap[adjacentTiles[:, 0].astype(int), adjacentTiles[:, 1].astype(int)]
-
-
-        # The gradient is computed. If necessary the gradient can be randomized in the case that it's a null vector.
-        xGradient1 = adjacentHeights[1] - adjacentHeights[0]
-        xGradient2 = adjacentHeights[3] - adjacentHeights[2]
-        yGradient1 = adjacentHeights[2] - adjacentHeights[0]
-        yGradient2 = adjacentHeights[3] - adjacentHeights[1]
-        gradient = np.array([xGradient1*(1-yDecimalPart) + xGradient2*yDecimalPart, \
-                             yGradient1 * (1 - xDecimalPart) + yGradient2 * xDecimalPart])
-        gradient /= np.linalg.norm(gradient)
-
-
-        # The direction of the water drop is updated. This should depend on the drops inertia (velocity and mass), right
-        #  now a constant inertai is used.
-        self.direction = self.direction * self.inertia - gradient * (1-self.inertia)
-        self.direction /= np.linalg.norm(self.direction)
-
-
-        # The z-coordinate before the movement is calculated and all coordinates are stored.
-        self.z = self.CalculateZ(xDecimalPart, yDecimalPart, adjacentHeights)
-        self.xPreviousStep = self.x
-        self.yPreviousStep = self.y
-        self.zPreviousStep = self.z
-
-
-        self.xPreviousWholePart = self.xWholePart
-        self.ypreviousWholePart = self.yWholePart
-
-
-
-        # Stores coordinates in array in order to visualize.
-        if self.storeTrail:
-            # x-, y- and z-coordinates are stored.
-            self.trailData[0, self.step] = self.x
-            self.trailData[1, self.step] = self.y
-            self.trailData[2, self.step] = self.z
-            self.step += 1
-
-
-        # The drop is moved
-        self.x += self.direction[0]
-        self.y += self.direction[1]
-        self.z = self.CalculateZ()
-        self.heightDifference = self.z - self.zPreviousStep
-'''
-
-
-
+        #cls.erosionColumnTemplate.append(columnList[distances < radius])
 

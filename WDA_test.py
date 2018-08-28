@@ -24,16 +24,14 @@ import cProfile
 
 mapSize = 512
 initialMaximumHeight = 100
-numberOfRuns = 10
-numberOfDrops = 1000 # THIS NEEDS TO BE 1 TO PREVENT -INF HOLES.
+numberOfRuns = 1000
+numberOfDrops = 1 # THIS NEEDS TO BE 1 TO PREVENT -INF HOLES.
 numberOfSteps = 64
+maximumErosionRadius = 10  # This determines how many erosion templates should be created.
 
 displaySurface = True
 displayTrail = False
 performProfiling = False
-
-
-maximumErosionRadius = 10  # This determines how many erosion templates should be created.
 
 
 # The height map is generated from "simple noise".
@@ -43,12 +41,23 @@ print('Noise has been generated')
 
 
 # Create visualization objects
+# Choose 'custom' or 'topdown' as view option for the Window3D objects.
+# The xPosition and yPosition values are to be given in pixels. A window with position (0, 0) is located in the upper
+# left corner. The width and height values are given in inches. 1 inch = 2.54 cm. 1 inch = 200 pixels (Robin's Laptop).
 if displaySurface:
-    initialWindow = Visualization.Window3D(xLim = [0, mapSize],
+    initialWindow = Visualization.Window3D(xPosition = 900,
+                                           yPosition = 70,
+                                           width = 5,
+                                           height = 5,
+                                           xLim = [0, mapSize],
                                            yLim = [0, mapSize],
                                            zLim = [0, initialMaximumHeight],
                                            view ='topdown')
-    mainWindow = Visualization.Window3D(xLim = [0, mapSize],
+    mainWindow = Visualization.Window3D(xPosition = 400,
+                                        yPosition = 70,
+                                        width = 5,
+                                        height = 5,
+                                        xLim = [0, mapSize],
                                         yLim = [0, mapSize],
                                         zLim = [0, initialMaximumHeight],
                                         view ='topdown')
@@ -75,31 +84,24 @@ for iRun in range(numberOfRuns):
                            numberOfSteps=numberOfSteps,
                            storeTrail=displayTrail,
                            inertia=0.7,
-                           capacityMultiplier=30,
-                           depositionRate=0.9,
-                           erosionRate=0.1,
-                           erosionRadius=4) for index in range(numberOfDrops)]
+                           capacityMultiplier=200,
+                           depositionRate=0.01,
+                           erosionRate=0.01,
+                           erosionRadius=4,
+                           maximumUnimprovedSteps = 5) for index in range(numberOfDrops)]
     WDA.WaterDrop.LinkToDrops(drops)
-    WDA.WaterDrop.heightMapChange = np.zeros((mapSize, mapSize))
-    WDA.WaterDrop.upperDepositionLimit = 20
-    #WDA.WaterDrop.upperErosionLimit = # Not used yet.
 
 
     # Move and animate the drops
     for iStep in range(numberOfSteps):
-        #print(len(drops))
         for drop in drops:
             drop()
-    for drop in drops:
-        drop.Deposit(depositAll=True)
-    heightMap += WDA.WaterDrop.heightMapChange
+
+
 toc = time.time()
 print('elapsed time : %s sec' % (toc - tic))
 print('Amount of material after simulation: %s' % np.sum(heightMap))
 
-print(np.min(WDA.WaterDrop.heightMapChange))
-print(np.max(WDA.WaterDrop.heightMapChange))
-print(np.sum(WDA.WaterDrop.heightMapChange))
 
 print(np.min(heightMap))
 print(np.max(heightMap))
@@ -124,7 +126,6 @@ if displayTrail:
 if displaySurface:
     print('Animation is done')
     mainWindow.Keep(True)
-
 
 
 print('The program has ended')
