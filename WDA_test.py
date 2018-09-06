@@ -12,6 +12,9 @@ The program will create a severe bug if parallell drops are used (numberOfDrops 
     # parallell computations this approach could be viable.
 
 
+    The inertia part of the DiscreteDrop class needs to be altered. Perhaps the previous direction should be included when choosing new direction, using the inertia as weights.
+
+    When choosing "topdown" in the visualizer the plot object generated should not be a 3D surface.
 '''
 
 import Simulation.Erosion.Hydrolic.WDA as WDA
@@ -25,7 +28,7 @@ import cProfile
 mapSize = 512
 initialMaximumHeight = 100
 numberOfRuns = 1000
-numberOfDrops = 1 # THIS NEEDS TO BE 1 TO PREVENT -INF HOLES.
+numberOfDrops = 1 # This do not need to be 1 but. Changing it does not result in parallel drops.
 numberOfSteps = 64
 maximumErosionRadius = 10  # This determines how many erosion templates should be created.
 
@@ -68,8 +71,10 @@ if displaySurface:
 
 
 # Creates templates used by all the drops.
-WDA.WaterDrop.InitializeTemplates(maximumErosionRadius)
 WDA.WaterDrop.LinkToHeightMap(heightMap)
+WDA.WaterDrop.InitializeErosionTemplates(maximumErosionRadius)
+WDA.ContinuousDrop.InitializeAdjacentTileTemplate()
+WDA.DiscreteDrop.InitializeAdjacentTileTemplate()
 
 
 if performProfiling:
@@ -80,19 +85,17 @@ print('Amount of material before simulation: %s' % np.sum(heightMap))
 tic = time.time()
 for iRun in range(numberOfRuns):
     # Create the drops
-    drops = [WDA.WaterDrop(mapSize,
+    drops = [WDA.DiscreteDrop(
                            numberOfSteps=numberOfSteps,
                            storeTrail=displayTrail,
-                           inertia=0.7,
+                           inertia=0.1,
                            capacityMultiplier=200,
                            depositionRate=0.01,
                            erosionRate=0.01,
                            erosionRadius=4,
                            maximumUnimprovedSteps = 5) for index in range(numberOfDrops)]
     WDA.WaterDrop.LinkToDrops(drops)
-
-
-    # Move and animate the drops
+    # Performs the drop simulation, step by step.
     for iStep in range(numberOfSteps):
         for drop in drops:
             drop()
@@ -114,7 +117,6 @@ if performProfiling:
 
 if displaySurface:
     mapSurface.Update(heightMap)
-    #mapSurface.Update(WDA.WaterDrop.heightMapChange)
 
 
 # The trails of the drops are visualized.
