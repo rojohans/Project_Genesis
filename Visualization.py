@@ -46,6 +46,7 @@ class Window3D():
         # Comment or uncomment following both lines to test the fake bounding box:
         for xb, yb, zb in zip(Xb, Yb, Zb):
             self.axes.plot([xb], [yb], [zb], 'w')
+        plt.ioff() # Used for greater speed (atleast that's the idea)
 
     def Delay(self, value):
         plt.pause(value)
@@ -77,9 +78,9 @@ class Visualizer3D():
 #-----------------------------------------------------------------------------------------------------------------------
 class Surf(Visualizer3D):
     '''
-    #
+    The visibility value is a value between 0 and 1. 0: Transparent, 1 = Not transparent.
     '''
-    def __init__(self, window, x=None, y=None, z=None):
+    def __init__(self, window, x=None, y=None, z=None, visibility = 1):
         super().__init__(window)
         if z is None:
             z = np.zeros([2, 2])
@@ -95,7 +96,7 @@ class Surf(Visualizer3D):
             self.visible = True
 
 
-        self.surface = self.axes.plot_surface(x, y, z, cmap = cm.gray, linewidth = 0, antialiased = False)
+        self.surface = self.axes.plot_surface(x, y, z, cmap = cm.gray, linewidth = 0, antialiased = False, alpha = visibility)
         # rcount=500, ccount=500 # use these parameters for the plot_surface() for finer resolution.
         if self.visible:
             plt.pause(0.0000001)
