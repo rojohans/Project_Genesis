@@ -6,7 +6,6 @@ from matplotlib import cm
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D # !!!This is used even if it's grey!!!
 
-
 #-----------------------------------------------------------------------------------------------------------------------
 class Window3D():
     '''
@@ -175,72 +174,95 @@ def PrepareLines(drops):
 
 
 
+#==============================================================================================================
+#==============================================================================================================
+#                         THE SECTION BELOW USES MAYAVI INSTEAD OF MATPLOTLIB
+#==============================================================================================================
+#==============================================================================================================
+
+from traits.api import HasTraits, Instance, Button, \
+    on_trait_change
+from traitsui.api import View, Item, HSplit, Group
+
+from tvtk.api import tvtk
+from mayavi import mlab
+from mayavi.core.ui.api import MlabSceneModel, SceneEditor
 
 
 
-#-----------------------------------------------------------------------------------------------------------------------
-class SurfaceVisualizer():
+
+
+class MayaviWindow(HasTraits):
     '''
-    The class is used when surfaces are to be used. The class contains one surface object. The surface can be updated
-    using the Update() function. In order for the aspect ratio to work properly an invisible box is created around the
-    surface, this box ensures that the aspect ratio is correct. The use of this box disables the use of custom x-, y-
-    and z-limits.
-    #
-    # A function to change the custom view-point value should be added.
-    # A function to save the image to file should be added.
-    # Support for both custom view-point and topdown should be added (2 axes).
-    #
+    The class consists of a window with two scenes. One scene visualizes the initial terrain and the other scene
+    visualizes the changed/updated (eroded) terrain. Buttons shall be added in order to toogle on/off things
+    like: water, sediment, rock layers, rainfall density etc.
     '''
 
-
-    def __init__(self, xLim, yLim, zLim, view = 'custom'):
-        self.figureWindow = plt.figure()
-        self.axes = self.figureWindow.gca(projection = '3d')
-        self.axes.set_aspect('equal')
-
-
-        # Depending on the inputs adjusts the view-point to be from above the surface (2D) or to be from a custom
-        # specific view angle.
-        self.customView = [30, 30]
-        if view == 'topdown':
-            self.axes.view_init(90, 0)
-        elif view == 'custom':
-            self.axes.view_init(self.customView[0], self.customView[1])
+    # In the original scene the terrain is visualized as it looked before the erosion simulation was done. The updated
+    # scene visualizes the terrain as it looks after the erosion simulation.
+    originalScene = Instance(MlabSceneModel, ())
+    updatedScene = Instance(MlabSceneModel, ())
 
 
-        x = np.zeros([2, 2])
-        y = np.zeros([2, 2])
-        z = np.zeros([2, 2])
-        self.surface = self.axes.plot_surface(x, y, z, cmap = cm.gray, linewidth = 0, antialiased = False)
+    # The layout of the window. (two horizontaly paralell scenes)
+    view = View(HSplit(
+            Group(
+                Item('updatedScene',
+                     editor=SceneEditor(), height=300, width=400),
+                show_labels=False
+                 ),
+            Group(
+                Item('originalScene',
+                     editor=SceneEditor(), height=300, width=400),
+                show_labels=False
+                 ),
+                      ),
+                        resizable=True,
+                        title='Terrain Visualizer',
+                )
 
 
-        #
-        # This code is needed in order for axis units to be equal.
-        #
-        # Create cubic bounding box to simulate equal aspect ratio
-        max_range = np.array([xLim[1] - xLim[0], yLim[1] - yLim[0], zLim[1] - zLim[0]]).max()
-        Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (xLim[1] + xLim[0])
-        Yb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][1].flatten() + 0.5 * (yLim[1] + yLim[0])
-        Zb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][2].flatten() + 0.5 * (zLim[1] + zLim[0])
-        # Comment or uncomment following both lines to test the fake bounding box:
-        for xb, yb, zb in zip(Xb, Yb, Zb):
-            self.axes.plot([xb], [yb], [zb], 'w')
+    def Surf(self, z, scene = 'updated', type = 'terrain'):
+        # Depending on input selects which scene to plot in.
+        if scene == 'updated':
+            figureToPlotIn = self.updatedScene.mayavi_scene
+        else:
+            figureToPlotIn = self.originalScene.mayavi_scene
+
+        # Depending on input specifies settings like colour and opacity for the surface.
+        if type == 'terrain':
+            surfaceColour = (0.6, 0.4, 0.3)
+            surfaceOpacity = 1
+        else:
+            if type == 'water':
+                surfaceColour = (0.1, 0.3, 0.5)
+                surfaceOpacity = 0.5
+
+        # Adds the surface to the selected scene.
+        mlab.surf(z, figure=figureToPlotIn, color=surfaceColour, opacity=surfaceOpacity)
 
 
-    def Update(self, z):
-        '''
-        When called the function updates the z-values for the surface object and visualizes that change.
-        '''
-        tmpVal = z.shape[0]
-        x = np.arange(0, tmpVal, 1)
-        y = np.arange(0, tmpVal, 1)
-        x, y = np.meshgrid(x, y)
+    # The @on_trait_change() methods are called when configure_traits() is called.
+    # A text annotation is created for each scene here. Since the figure input of the mlab.text() method do not work
+    # properly a dummy surface is used to get around this problem.
+    @on_trait_change('originalScene.activated')
+    def OriginalSceneSettings(self):
+        self.originalScene.interactor.interactor_style = \
+            tvtk.InteractorStyleTerrain()
+        # The distance value is set in such a way that the entire surface should be visible without need to zoom out.
+        self.originalScene.scene.mlab.view(30, 60, distance=2.5*512)
+        mlab.surf(np.zeros([2, 2]), figure = self.originalScene.mayavi_scene, opacity = 0) # Dummy surface
+        mlab.text(0.7, 0.9, 'Initial', width=0.3)
 
-        # The old plot_surface object is removed and another is created. Instead of deleting the old object and
-        # creating a new object the object should just be changed, not sure how to do this in python.
-        self.surface.remove()
-        self.surface = self.axes.plot_surface(x, y, z, cmap=cm.gray, linewidth=0, antialiased=False)
-        plt.pause(0.0000001)
+    @on_trait_change('updatedScene.activated')
+    def UpdatedSceneSettings(self):
+        self.updatedScene.interactor.interactor_style = \
+            tvtk.InteractorStyleTerrain()
+        # The distance value is set in such a way that the entire surface should be visible without need to zoom out.
+        self.updatedScene.scene.mlab.view(30, 60, distance=2.5*512)
+        mlab.surf(np.zeros([2, 2]), figure = self.updatedScene.mayavi_scene, opacity = 0) # Dummy surface
+        mlab.text(0.6, 0.9, 'Updated', width=0.4)
 
 
 
