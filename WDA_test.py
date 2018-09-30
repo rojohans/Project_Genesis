@@ -28,12 +28,12 @@ import cProfile
 mapSize = 512
 initialMaximumHeight = 100
 numberOfRuns = 1000
-numberOfDrops = 1 # This do not need to be 1 but. Changing it does not result in parallel drops.
+numberOfDrops = 1 # This do not need to be 1 but changing it does not result in true parallel drops.
 numberOfSteps = 64
 maximumErosionRadius = 10  # This determines how many erosion templates should be created.
 
 
-displaySurface = True
+displaySurface = False
 displayTrail = False
 performProfiling = False
 
@@ -43,36 +43,6 @@ heightMap = Noise.SimpleNoise(mapSize,2,2)
 heightMap *= initialMaximumHeight
 print('Noise has been generated')
 
-
-#            THIS OLD CODE USES MATPLOTLIB
-'''
-# Create visualization objects
-# Choose 'custom' or 'topdown' as view option for the Window3D objects.
-# The xPosition and yPosition values are to be given in pixels. A window with position (0, 0) is located in the upper
-# left corner. The width and height values are given in inches. 1 inch = 2.54 cm. 1 inch = 200 pixels (Robin's Laptop).
-if displaySurface:
-    initialWindow = Visualization.Window3D(xPosition = 900,
-                                           yPosition = 70,
-                                           width = 5,
-                                           height = 5,
-                                           xLim = [0, mapSize],
-                                           yLim = [0, mapSize],
-                                           zLim = [0, initialMaximumHeight],
-                                           view ='topdown')
-    mainWindow = Visualization.Window3D(xPosition = 400,
-                                        yPosition = 70,
-                                        width = 5,
-                                        height = 5,
-                                        xLim = [0, mapSize],
-                                        yLim = [0, mapSize],
-                                        zLim = [0, initialMaximumHeight],
-                                        view ='custom')
-    initialMapSurface = Visualization.Surf(initialWindow, z = heightMap)
-    mapSurface = Visualization.Surf(mainWindow, z = heightMap)
-    waterSurface = Visualization.Surf(mainWindow, z=5+np.zeros([mapSize, mapSize]), visibility = 0.5)
-    if displayTrail:
-        trailLines = Visualization.Lines(mainWindow, numberOfDrops)
-'''
 
 # Creates a mayavi window and visualizes the initial terrain.
 window = Visualization.MayaviWindow()
@@ -100,7 +70,7 @@ for iRun in range(numberOfRuns):
                            storeTrail=displayTrail,
                            inertia=0.1,
                            capacityMultiplier=200,
-                           depositionRate=0.1,
+                           depositionRate=0.01,
                            erosionRate=0.01,
                            erosionRadius=4,
                            maximumUnimprovedSteps = 5) for index in range(numberOfDrops)]

@@ -221,6 +221,11 @@ class WaterDrop():
         cls.heightMap = heightMap
         cls.gridSize = np.shape(heightMap)[0]
 
+        # Reformats the numpy.array into a 1-dimensional tuple.
+        #cls.heightMap = heightMap.reshape(1, -1)[0]
+        #print(np.shape(cls.heightMap))
+
+
     @classmethod
     def LinkToDrops(cls, dropList):
         # Gives all the drops access to the list of drops.
@@ -370,12 +375,12 @@ class ContinuousDrop(WaterDrop):
 
 
     def UpdateDirection(self, xDecimalPart, yDecimalPart, adjacentHeights):
-        '''
-        :param xDecimalPart:
-        :param yDecimalPart:
-        :param adjacentHeights:
-        :return:
-        '''
+        #
+        #:param xDecimalPart:
+        #:param yDecimalPart:
+        #:param adjacentHeights:
+        #:return:
+        #
         # The gradient is computed. If necessary the gradient can be randomized in the case that it's a null vector.
         xGradient1 = adjacentHeights[1] - adjacentHeights[0]
         xGradient2 = adjacentHeights[3] - adjacentHeights[2]
@@ -383,7 +388,6 @@ class ContinuousDrop(WaterDrop):
         yGradient2 = adjacentHeights[3] - adjacentHeights[1]
         gradient = np.array([xGradient1*(1-yDecimalPart) + xGradient2*yDecimalPart, \
                              yGradient1 * (1 - xDecimalPart) + yGradient2 * xDecimalPart])
-
 
         # If the gradient is a null vector a random unit vector is choosen.
         gradientNorm = np.linalg.norm(gradient)
@@ -393,7 +397,6 @@ class ContinuousDrop(WaterDrop):
             gradient[1] = np.sin(randomAngle)
         else:
             gradient /= np.linalg.norm(gradient)
-
 
         # The direction of the water drop is updated. This should depend on the drops inertia (velocity and mass), right
         #  now a constant inertai is used.
