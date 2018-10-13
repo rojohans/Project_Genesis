@@ -49,11 +49,9 @@ def SimpleNoise(gridSize, numberOfInitialIterationsToSkip = 1, amplitudeReductio
         sampleRowList = np.reshape(sampleRowGrid, [sampleRowGrid.size, 1])
         sampleColumnList = np.reshape(sampleColumnGrid, [sampleColumnGrid.size, 1])
 
-
         # Extracts the random samples to be used to create the current layer.
         noiseSamples = underlyingNoise[sampleRowList, sampleColumnList]
         noiseSamples = np.reshape(noiseSamples, [int(np.sqrt(noiseSamples.size)), int(np.sqrt(noiseSamples.size))])
-
 
         # The sampled noise values are used to interpolate a whole layer that will be added to the multi-layered noise.
         # The RectBivariateSpline function can not handle input with less then/equal to 3 coordinates. When this is the
@@ -65,7 +63,6 @@ def SimpleNoise(gridSize, numberOfInitialIterationsToSkip = 1, amplitudeReductio
         layerRows = range(0, gridSize + 1, 1)
         layerColumns = range(0, gridSize + 1, 1)
         singleNoiseLayer = f(layerRows, layerColumns)
-
 
         generatedNoise += samplingAmplitude * singleNoiseLayer
         samplingInterval /= 2

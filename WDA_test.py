@@ -27,33 +27,86 @@ import cProfile
 
 mapSize = 512
 initialMaximumHeight = 100
-numberOfRuns = 1000
+numberOfRuns = 1
 numberOfDrops = 1 # This do not need to be 1 but changing it does not result in true parallel drops.
 numberOfSteps = 64
 maximumErosionRadius = 10  # This determines how many erosion templates should be created.
 
 
-displaySurface = False
+#100000  = 20 minuter
+#1000000 = 3 timmar
+#2000000 = 6 timmar
+
+
+displaySurface = True
 displayTrail = False
 performProfiling = False
 
 
 # The height map is generated from "simple noise".
-heightMap = Noise.SimpleNoise(mapSize,2,2)
+heightMap = Noise.SimpleNoise(mapSize,3,1.8)
 heightMap *= initialMaximumHeight
+'''
+# THIS CODE GENERATES INITIAL HILLS/MOUNTAINS
+heightMap = np.zeros((mapSize, mapSize))
+for x in range(mapSize):
+    for y in range(mapSize):
+        heightMap[x, y] += 1/(1 + 0.0002*((x-mapSize/2)**2 + (y-mapSize/2)**2))
+        heightMap[x, y] += 1 / (1 + 0.0002 * ((x - mapSize / 3) ** 2 + (y - mapSize / 1.5) ** 2))
+        heightMap[x, y] += 1 / (1 + 0.0002 * ((x - mapSize / 1.2) ** 2 + (y - mapSize / 3.1) ** 2))
+        heightMap[x, y] += 1 / (1 + 0.0002 * ((x - mapSize / 1.2) ** 2 + (y - mapSize / 1.8) ** 2))
+        heightMap[x, y] += 1 / (1 + 0.0002 * ((x - mapSize / 2.3) ** 2 + (y - mapSize / 2.8) ** 2))
+        heightMap[x, y] += 1 / (1 + 0.0002 * ((x - mapSize / 2.9) ** 2 + (y - mapSize / 3.6) ** 2))
+heightMap -= np.min(heightMap)
+heightMap[heightMap < 0.2] = 0.2
+a = Noise.SimpleNoise(mapSize,3,1.1)
+a *= 0.2
+heightMap += a
+heightMap -= np.min(heightMap)
+heightMap /= np.max(heightMap)
+heightMap *= initialMaximumHeight
+'''
+
+initialRockMap = heightMap.copy() # Used to determine where sediment has accumulated.
+initialSedimentMap = np.zeros((mapSize, mapSize))
+initialTotalMap = heightMap.copy()
+
+rockMap = initialRockMap.copy()
+sedimentMap = initialSedimentMap.copy()
+totalHeightMap = heightMap.copy() + sedimentMap.copy()
 print('Noise has been generated')
 
 
 # Creates a mayavi window and visualizes the initial terrain.
 window = Visualization.MayaviWindow()
-window.Surf(heightMap, type='terrain', scene='original')
+window.Surf(initialRockMap, type='terrain', scene='original')
 
 
 # Creates templates used by all the drops.
-WDA.WaterDrop.LinkToHeightMap(heightMap)
+WDA.WaterDrop.LinkToHeightMap(heightMap, sedimentMap, totalHeightMap)
 WDA.WaterDrop.InitializeErosionTemplates(maximumErosionRadius)
 WDA.ContinuousDrop.InitializeAdjacentTileTemplate()
 WDA.DiscreteDrop.InitializeAdjacentTileTemplate()
+
+'''
+a = WDA.ContinuousDrop()
+
+print(a)
+
+import pickle
+
+with open('test_save.pkl', 'wb') as output:
+    pickle.dump(a, output, pickle.HIGHEST_PROTOCOL)
+
+del a
+
+with open('test_save.pkl', 'rb') as input:
+    b = pickle.load(input)
+
+print(b)
+
+quit()
+'''
 
 
 if performProfiling:
@@ -68,9 +121,9 @@ for iRun in range(numberOfRuns):
     drops = [WDA.ContinuousDrop(
                            numberOfSteps=numberOfSteps,
                            storeTrail=displayTrail,
-                           inertia=0.1,
+                           inertia=0.3,
                            capacityMultiplier=200,
-                           depositionRate=0.01,
+                           depositionRate=0.1,
                            erosionRate=0.01,
                            erosionRadius=4,
                            maximumUnimprovedSteps = 5) for index in range(numberOfDrops)]
@@ -90,15 +143,72 @@ print(np.min(heightMap))
 print(np.max(heightMap))
 
 
+print(np.min(sedimentMap))
+print(np.max(sedimentMap))
+
+print(np.min(totalHeightMap))
+print(np.max(totalHeightMap))
+
+'''
+from PIL import Image
+import random
+
+
+#a = np.zeros((16, 16, 3))
+a = np.zeros((512, 512, 3))
+
+a[:, :, 0] = 255*heightMap/np.max(heightMap)
+
+img = Image.fromarray(a.astype('uint8'), 'RGB')
+
+img.show()
+'''
+
+
 if performProfiling:
     pr.disable()
     pr.print_stats(2)
 
 
+
+import Storage
+import pickle
+import datetime
+now=datetime.datetime.now()
+
+print(str(now))
+#print(now.strftime("%Y-%m-%d %H:%M"))
+
+#'Worlds/' + str(now) + '.pkl'
+
+
+world = Storage.World(initialRockMap, initialSedimentMap, initialTotalMap, heightMap, sedimentMap, totalHeightMap)
+pickle.dump(world, open('Worlds/' + now.strftime("%Y-%m-%d %H:%M") + '.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+
+
 # Visualizes the eroded terrain.
 if displaySurface:
+    #window.Surf(totalHeightMap, type='terrain', scene='original')
     window.Surf(heightMap, type='terrain', scene='updated')
+    #sedimentMap = heightMap-unchangedHeightMap
+    #sedimentMap[sedimentMap > 0] = 0
+    #heightMapToPlot = unchangedHeightMap + sedimentMap
+    #window.Surf(heightMapToPlot, type='terrain', scene='updated')
+
+    #sedimentMap = heightMap-unchangedHeightMap
+    #sedimentMap[sedimentMap < 0] = 0
+    #c = unchangedHeightMap + sedimentMap
+    #c[sedimentMap == 0] = 0
+
+
     #window.Surf(30+np.zeros([mapSize, mapSize]), type='water', scene='updated')
+    #window.Surf(c, type='water', scene='updated')
+
+    np.min(sedimentMap)
+    heightMap[sedimentMap == 0] = 0
+    window.Surf(heightMap + sedimentMap, type='sediment', scene='updated')
+    #window.SedimentColour(sedimentMap)
+
     window.configure_traits()
     #mapSurface.Update(heightMap)
 

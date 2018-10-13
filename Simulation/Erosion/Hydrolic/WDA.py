@@ -210,7 +210,7 @@ class WaterDrop():
         self._y = self._periodic(value)
 
     @classmethod
-    def LinkToHeightMap(cls, heightMap):
+    def LinkToHeightMap(cls, heightMap, sedimentMap, totalHeightMap):
         '''
         This is used in order for the drop to have access to the heightmap. If the heightMap were to be changed by
         one drop all other drops would also notice the change. When assigning the gridSize the heightMap is assumed
@@ -219,11 +219,9 @@ class WaterDrop():
         :return:
         '''
         cls.heightMap = heightMap
+        cls.sedimentMap = sedimentMap
+        cls.totalHeightMap = totalHeightMap
         cls.gridSize = np.shape(heightMap)[0]
-
-        # Reformats the numpy.array into a 1-dimensional tuple.
-        #cls.heightMap = heightMap.reshape(1, -1)[0]
-        #print(np.shape(cls.heightMap))
 
 
     @classmethod
@@ -334,7 +332,7 @@ class ContinuousDrop(WaterDrop):
         self.adjacentTiles = np.zeros((4, 2))
         self.adjacentTiles[:, 0] = self._periodic(self.adjacentTilesTemplate[:, 0] + self.yWholePart)
         self.adjacentTiles[:, 1] = self._periodic(self.adjacentTilesTemplate[:, 1] + self.xWholePart)
-        self.adjacentHeights = self.heightMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
+        self.adjacentHeights = self.totalHeightMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
 
         # Interpolates the z coordinate value of the drop based on the surrounding heights.
         self.z = (1-self.xDecimalPart) * (self.adjacentHeights[0]*(1-self.yDecimalPart) + self.adjacentHeights[2]*self.yDecimalPart) \
@@ -365,8 +363,7 @@ class ContinuousDrop(WaterDrop):
         self.adjacentTiles[:, 0] = self._periodic(self.adjacentTilesTemplate[:, 0] + self.yWholePart)
         self.adjacentTiles[:, 1] = self._periodic(self.adjacentTilesTemplate[:, 1] + self.xWholePart)
         # Retrieves the map height for the adjacent tiles and interpolates the height of the water drop.
-
-        self.adjacentHeights = self.heightMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
+        self.adjacentHeights = self.totalHeightMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
 
         # Interpolates the z coordinate value of the drop based on the surrounding heights.
         self.z = (1-self.xDecimalPart) * (self.adjacentHeights[0]*(1-self.yDecimalPart) + self.adjacentHeights[2]*self.yDecimalPart) \
@@ -427,8 +424,13 @@ class ContinuousDrop(WaterDrop):
             depositionAmount = (self.sedimentAmount - self.sedimentCapacity) * self.depositionRate
 
         # Material is added to the map and sediment is removed from the drop.
-        self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
+        #self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
+        #    depositionAmount * heightDifferences / np.sum(heightDifferences)
+        self.sedimentMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
             depositionAmount * heightDifferences / np.sum(heightDifferences)
+        self.totalHeightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
+            depositionAmount * heightDifferences / np.sum(heightDifferences)
+        # One could probably optimize this step and not change values in both the sedimentMap and the totalHeightMap.
         self.sedimentAmount -= depositionAmount
 
 
@@ -449,6 +451,8 @@ class ContinuousDrop(WaterDrop):
         # Material is removed from the map and sediment is added to the drop.
         self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
             erosionAmount*self.erosionWeightTemplate[self.erosionRadius]
+        self.totalHeightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -= \
+            erosionAmount * self.erosionWeightTemplate[self.erosionRadius]
         self.sedimentAmount += erosionAmount
 
 
