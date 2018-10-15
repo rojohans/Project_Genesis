@@ -14,7 +14,6 @@ class World():
         self.totalHeightMap = totalMap
 
 
-
         # THE PARAMETERS HAS NOT YET BEEN ADDED.
         # THE PARAMETERS HAS NOT YET BEEN ADDED.
         # THE PARAMETERS HAS NOT YET BEEN ADDED.
