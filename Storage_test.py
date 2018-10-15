@@ -1,17 +1,15 @@
-import pickle # https://docs.python.org/3/library/pickle.html
-import Visualization
+import easygui
 
 
-#import easygui
-#easygui.egdemo()
-#fileName = easygui.fileopenbox()
+fileName = easygui.fileopenbox(default = "*.pkl")
+if fileName == None:
+    quit()
+else:
+    import pickle  # https://docs.python.org/3/library/pickle.html
+    import Visualization
+    world = pickle.load(open(fileName, 'rb'))
+    #world = pickle.load(open('Worlds/test_save.pkl', 'rb'))
 
-
-
-
-
-#world = pickle.load(open(fileName, 'rb'))
-world = pickle.load(open('Worlds/test_save.pkl', 'rb'))
 
 
 
