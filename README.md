@@ -9,6 +9,3 @@ Requirements:
   mayavi  4.6.2  
   pyqt    4.11.4  
   easygui 0.98.1
-  
-  
-  
