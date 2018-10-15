@@ -27,3 +27,4 @@ rockMapCopy[world.sedimentMap == 0] = 0
 window.Surf(rockMapCopy + world.sedimentMap, type='sediment', scene='updated')
 
 window.configure_traits()
+
