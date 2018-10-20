@@ -24,27 +24,37 @@ import numpy as np
 import time # Used to time code, like tic-toc.
 import cProfile
 
-
+#=================================================
+#                    SETTINGS
+#=================================================
 mapSize = 512
 initialMaximumHeight = 100
-numberOfRuns = 1
-numberOfDrops = 1 # This do not need to be 1 but changing it does not result in true parallel drops.
+numberOfRuns = 100
+numberOfDrops = 1000 # This do not need to be 1 but changing it does not result in true parallel drops.
 numberOfSteps = 64
 maximumErosionRadius = 10  # This determines how many erosion templates should be created.
 
+inertia = 0.3
+capacityMultiplier = 200
+depositionRate = 0.1
+erosionRate = 0.1
+erosionRadius = 3
+maximumUnimprovedSteps = 5
+
+
+
+displaySurface = True
+displayTrail = False
+performProfiling = False
+saveWorld = False
 
 #100000  = 20 minuter
 #1000000 = 3 timmar
 #2000000 = 6 timmar
 
 
-displaySurface = True
-displayTrail = False
-performProfiling = False
-
-
 # The height map is generated from "simple noise".
-heightMap = Noise.SimpleNoise(mapSize,3,1.8)
+heightMap = Noise.SimpleNoise(mapSize,1,2)
 heightMap *= initialMaximumHeight
 '''
 # THIS CODE GENERATES INITIAL HILLS/MOUNTAINS
@@ -83,30 +93,10 @@ window.Surf(initialRockMap, type='terrain', scene='original')
 
 
 # Creates templates used by all the drops.
-WDA.WaterDrop.LinkToHeightMap(heightMap, sedimentMap, totalHeightMap)
+WDA.WaterDrop.LinkToHeightMap(rockMap, sedimentMap, totalHeightMap)
 WDA.WaterDrop.InitializeErosionTemplates(maximumErosionRadius)
 WDA.ContinuousDrop.InitializeAdjacentTileTemplate()
 WDA.DiscreteDrop.InitializeAdjacentTileTemplate()
-
-'''
-a = WDA.ContinuousDrop()
-
-print(a)
-
-import pickle
-
-with open('test_save.pkl', 'wb') as output:
-    pickle.dump(a, output, pickle.HIGHEST_PROTOCOL)
-
-del a
-
-with open('test_save.pkl', 'rb') as input:
-    b = pickle.load(input)
-
-print(b)
-
-quit()
-'''
 
 
 if performProfiling:
@@ -121,12 +111,12 @@ for iRun in range(numberOfRuns):
     drops = [WDA.ContinuousDrop(
                            numberOfSteps=numberOfSteps,
                            storeTrail=displayTrail,
-                           inertia=0.3,
-                           capacityMultiplier=200,
-                           depositionRate=0.1,
-                           erosionRate=0.01,
-                           erosionRadius=4,
-                           maximumUnimprovedSteps = 5) for index in range(numberOfDrops)]
+                           inertia=inertia,
+                           capacityMultiplier=capacityMultiplier,
+                           depositionRate=depositionRate,
+                           erosionRate=erosionRate,
+                           erosionRadius=erosionRadius,
+                           maximumUnimprovedSteps = maximumUnimprovedSteps) for index in range(numberOfDrops)]
     WDA.WaterDrop.LinkToDrops(drops)
     # Performs the drop simulation, step by step.
     for iStep in range(numberOfSteps):
@@ -139,9 +129,8 @@ print('elapsed time : %s sec' % (toc - tic))
 print('Amount of material after simulation: %s' % np.sum(heightMap))
 
 
-print(np.min(heightMap))
-print(np.max(heightMap))
-
+print(np.min(rockMap))
+print(np.max(rockMap))
 
 print(np.min(sedimentMap))
 print(np.max(sedimentMap))
@@ -149,20 +138,9 @@ print(np.max(sedimentMap))
 print(np.min(totalHeightMap))
 print(np.max(totalHeightMap))
 
-'''
-from PIL import Image
-import random
+print(np.min(rockMap + sedimentMap))
+print(np.max(rockMap + sedimentMap))
 
-
-#a = np.zeros((16, 16, 3))
-a = np.zeros((512, 512, 3))
-
-a[:, :, 0] = 255*heightMap/np.max(heightMap)
-
-img = Image.fromarray(a.astype('uint8'), 'RGB')
-
-img.show()
-'''
 
 
 if performProfiling:
@@ -170,26 +148,34 @@ if performProfiling:
     pr.print_stats(2)
 
 
-
-import Storage
-import pickle
-import datetime
-now=datetime.datetime.now()
-
-print(str(now))
-#print(now.strftime("%Y-%m-%d %H:%M"))
-
-#'Worlds/' + str(now) + '.pkl'
-
-
-world = Storage.World(initialRockMap, initialSedimentMap, initialTotalMap, heightMap, sedimentMap, totalHeightMap)
-pickle.dump(world, open('Worlds/' + now.strftime("%Y-%m-%d %H:%M") + '.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+if saveWorld:
+    import Storage
+    import pickle
+    import datetime
+    now=datetime.datetime.now() # Date and time used as filename.
+    # Creates a World object. It contains the heightmaps generated and the parameters used in the process.
+    world = Storage.World(initialRockMap,
+                          initialSedimentMap,
+                          initialTotalMap,
+                          rockMap,
+                          sedimentMap,
+                          totalHeightMap,
+                          numberOfRuns,
+                          numberOfDrops,
+                          numberOfSteps,
+                          inertia,
+                          capacityMultiplier,
+                          depositionRate,
+                          erosionRate,
+                          erosionRadius,
+                          maximumUnimprovedSteps)
+    pickle.dump(world, open('Worlds/' + now.strftime("%Y-%m-%d %H:%M") + '.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
 
 
 # Visualizes the eroded terrain.
 if displaySurface:
     #window.Surf(totalHeightMap, type='terrain', scene='original')
-    window.Surf(heightMap, type='terrain', scene='updated')
+    window.Surf(rockMap, type='terrain', scene='updated')
     #sedimentMap = heightMap-unchangedHeightMap
     #sedimentMap[sedimentMap > 0] = 0
     #heightMapToPlot = unchangedHeightMap + sedimentMap

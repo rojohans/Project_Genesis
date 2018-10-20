@@ -1,13 +1,10 @@
 from traits.api import HasTraits, Instance, Button, \
     on_trait_change
 from traitsui.api import View, Item, HSplit, Group
-
 from tvtk.api import tvtk
 from mayavi import mlab
 from mayavi.core.ui.api import MlabSceneModel, SceneEditor
-
 import numpy as np
-
 
 
 class MayaviWindow(HasTraits):

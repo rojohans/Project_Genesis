@@ -9,7 +9,7 @@ class WaterDrop():
     erosionWeightTemplate = []
     erosionTileTemplate = []
 
-    heightMap = []
+    rockMap = []
     gridSize = []
 
     dropList = [] # Used when drops are to "kill" themself.
@@ -210,18 +210,18 @@ class WaterDrop():
         self._y = self._periodic(value)
 
     @classmethod
-    def LinkToHeightMap(cls, heightMap, sedimentMap, totalHeightMap):
+    def LinkToHeightMap(cls, rockMap, sedimentMap, totalHeightMap):
         '''
         This is used in order for the drop to have access to the heightmap. If the heightMap were to be changed by
         one drop all other drops would also notice the change. When assigning the gridSize the heightMap is assumed
         to be cubic in shape.
-        :param heightMap:
+        :param rockMap:
         :return:
         '''
-        cls.heightMap = heightMap
+        cls.rockMap = rockMap
         cls.sedimentMap = sedimentMap
         cls.totalHeightMap = totalHeightMap
-        cls.gridSize = np.shape(heightMap)[0]
+        cls.gridSize = np.shape(rockMap)[0]
 
 
     @classmethod
@@ -447,12 +447,23 @@ class ContinuousDrop(WaterDrop):
 
         # Determines the amount of material to remove.
         erosionAmount = np.min(((self.sedimentCapacity-self.sedimentAmount)*self.erosionRate,-self.heightDifference))
+        erosionWeights = self.erosionWeightTemplate[self.erosionRadius]
+
+        # Determines which tiles are rock and which are sediment.
+        a = np.sign(self.sedimentMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)])
+        rockTilesToErode = tilesToErode[a<1, :]
+        sedimentTilesToErode = tilesToErode[a==1, :]
+
+        # There is a minor problem in this part, it is possible to remove more sediment than there is sediment present.
+        # This problem should be very minor until the weathering process is implemented.
 
         # Material is removed from the map and sediment is added to the drop.
-        self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
-            erosionAmount*self.erosionWeightTemplate[self.erosionRadius]
+        self.rockMap[rockTilesToErode[:, 0].astype(int), rockTilesToErode[:, 1].astype(int)] -=\
+            erosionAmount * erosionWeights[a<1]
+        self.sedimentMap[sedimentTilesToErode[:, 0].astype(int), sedimentTilesToErode[:, 1].astype(int)] -= \
+            erosionAmount * erosionWeights[a==1]
         self.totalHeightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -= \
-            erosionAmount * self.erosionWeightTemplate[self.erosionRadius]
+            erosionAmount * erosionWeights
         self.sedimentAmount += erosionAmount
 
 
@@ -505,12 +516,12 @@ class DiscreteDrop(WaterDrop):
             self.y = np.random.randint(0, self.gridSize)
         else:
             self.y = y
-        self.z = self.heightMap[self.y, self.x]
+        self.z = self.rockMap[self.y, self.x]
 
         self.adjacentTiles = np.zeros((5, 2))
         self.adjacentTiles[:, 0] = self._periodic(self.adjacentTilesTemplate[:, 0] + self.y)
         self.adjacentTiles[:, 1] = self._periodic(self.adjacentTilesTemplate[:, 1] + self.x)
-        self.adjacentHeights = self.heightMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
+        self.adjacentHeights = self.rockMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
 
 
     def Move(self):
@@ -525,14 +536,14 @@ class DiscreteDrop(WaterDrop):
         # The drop is moved
         self.x += self.direction[1]
         self.y += self.direction[0]
-        self.z = self.heightMap[self.y, self.x]
+        self.z = self.rockMap[self.y, self.x]
         self.heightDifference = self.z - self.zPreviousStep
 
         # The adjacent tiles are selected using the adjacent tile template.
         self.adjacentTiles = np.zeros((5, 2))
         self.adjacentTiles[:, 0] = self._periodic(self.adjacentTilesTemplate[:, 0] + self.y)
         self.adjacentTiles[:, 1] = self._periodic(self.adjacentTilesTemplate[:, 1] + self.x)
-        self.adjacentHeights = self.heightMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
+        self.adjacentHeights = self.rockMap[self.adjacentTiles[:, 0].astype(int), self.adjacentTiles[:, 1].astype(int)]
 
 
     def UpdateDirection(self):
@@ -576,7 +587,7 @@ class DiscreteDrop(WaterDrop):
             depositionAmount = (self.sedimentAmount - self.sedimentCapacity) * self.depositionRate
 
         # Material is added to the map and sediment is removed from the drop.
-        self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
+        self.rockMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
             depositionAmount * heightDifferences / np.sum(heightDifferences)
         self.sedimentAmount -= depositionAmount
 
@@ -595,7 +606,7 @@ class DiscreteDrop(WaterDrop):
         erosionAmount = np.min(((self.sedimentCapacity-self.sedimentAmount)*self.erosionRate,-self.heightDifference))
 
         # Material is removed from the map and sediment is added to the drop.
-        self.heightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
+        self.rockMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -=\
             erosionAmount*self.erosionWeightTemplate[self.erosionRadius]
         self.sedimentAmount += erosionAmount
 
