@@ -547,7 +547,14 @@
       <option name="project" value="LOCAL" />
       <updated>1540038612906</updated>
     </task>
-    <option name="localTasksCounter" value="37" />
+    <task id="LOCAL-00037" summary="Fixed bug in WDA.ContinuousDrop.Erode().">
+      <created>1540038678169</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1540038678169</updated>
+    </task>
+    <option name="localTasksCounter" value="38" />
     <servers />
   </component>
   <component name="ToolWindowManager">
