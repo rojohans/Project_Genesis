@@ -16,6 +16,8 @@ Rock types: Different rocktypes should have different parameters, for example on
 
 Interactable visualization: One should be able to toogle on/off things like: rock/sediment colour distinction, drop trajectory density, waterfall density, waterdepth, sedimentdepth etc.
 
+Noise generation test function.
+
 ## Requirements:  
   Python  3.6.6  
   numpy   1.13.1  
