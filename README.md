@@ -5,6 +5,7 @@ The file WDA_test.py can be used to test the water drop erosion algorithm. The t
 ## TO DO
 
 ### Water Collection
+#### Water collection
 Water collection: As drops reach a "dead end" they should disolve into water, filling adjacent tiles and spilling over to nearby tiles until all the water has settled or a "Ledge" has been reached. In that case a new smaller drop should be formed at that location containing the remaining water.
 
 Drop merging: Small drops should have the capability of merging into larger drops. The larger drops should have a bigger erosional effect and may have different parameters compared to the small drops. This could lower the running time since less drops would be simulated (assuming that a significant amount do merge).
