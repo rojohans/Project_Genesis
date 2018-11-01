@@ -16,7 +16,11 @@ Rock types: Different rocktypes should have different parameters, for example on
 
 Interactable visualization: One should be able to toogle on/off things like: rock/sediment colour distinction, drop trajectory density, waterfall density, waterdepth, sedimentdepth etc.
 
+Statistics module: This module could be used to display/plot statistics and distributions of a selected world. Things to be studied could be: Proportions of sediment/rock/water amounts, distribution of lakes/seas (few large and many small, or all of similar size?), maximum sediment depth, sediment depth distribution, average elevation, average slope steepness etc.
+
 Noise generation test function.
+
+Water collection test function.
 
 ## Requirements:  
   Python  3.6.6  
