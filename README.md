@@ -45,6 +45,8 @@ An idea to a system: The world consists of a layer of particles. Each particle h
 #### Sediment deposition
 Needs to be looked over, it may bug ig multiple drops run in parallell.
 
+#### Change drop direction determination
+The gradient should probably be scaled using the drops velocity and wether the drop is travelling uphill or not. This should be done to prevent drops from going uphill. Thou it is not certain if this is wanted, it will affect the deposition/water filling mechanics. !!!DO THIS WITH CAUTION!!!
 
 ## Requirements:  
   Python  3.6.6  
