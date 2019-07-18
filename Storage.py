@@ -2,15 +2,22 @@ class World():
     '''
     The World class contains everything which is distinctive of a created world, like the different heightmaps but also
     parameters used to create the world.
+    ====================================================================================================================
+    ====================================================================================================================
+    ============================== NOTE THAT THIS IS A 2D GRID BASED WORLD =============================================
+    ====================================================================================================================
+    ====================================================================================================================
     '''
 
     def __init__(self,
                  initialRockMap,
                  initialSedimentMap,
                  initialTotalMap,
+                 initialWaterMap,
                  rockMap,
                  sedimentMap,
                  totalMap,
+                 waterMap,
                  numberOfRuns,
                  numberOfDrops,
                  numberOfSteps,
@@ -25,11 +32,13 @@ class World():
         self.initialRockMap = initialRockMap
         self.initialSedimentMap = initialSedimentMap
         self.initialTotalMap = initialTotalMap
+        self.initialWaterMap = initialWaterMap
 
         # Processed heigthmaps
         self.rockMap = rockMap
         self.sedimentMap = sedimentMap
         self.totalHeightMap = totalMap
+        self.waterMap = waterMap
 
         # parameters
         self.numberOfRuns = numberOfRuns
@@ -41,6 +50,33 @@ class World():
         self.erosionRate = erosionRate
         self.erosionRadius = erosionRadius
         self.maximumUnimprovedSteps = maximumUnimprovedSteps
+
+
+class World3DTemplate():
+    #
+    #
+    # This class is used to create templates from which to create new 3D worlds. This is mostly done for performance
+    # since the delaunay triangulation takes alot of time for a large number of points, the triangulation is used to get
+    # the simplices which connects the points (needed for visualization).
+    #
+    #
+
+    def __init__(self,
+                 cartesianCoordinates,
+                 sphericalCoordinates,
+                 surfaceSimplices,
+                 numberOfPoints,
+                 numberOfThetaValues):
+
+        # cartesianCoordinates = [x, y, z]
+        # sphericalCoordinates = [phi, theta, r]
+        self.cartesianCoordinates = cartesianCoordinates
+        self.sphericalCoordinates = sphericalCoordinates
+        self.surfaceSimplices = surfaceSimplices
+
+        self.numberOfPoints = numberOfPoints
+        self.numberOfThetaValues = numberOfThetaValues
+
 
 
 def GetWorldFromFile():

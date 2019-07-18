@@ -2,6 +2,7 @@
 # This module contains the waterdrop erosion algorithm
 #
 import numpy as np
+from ... import FluidDynamics as FluidDynamics # Be aware that this needs to change if the folder structure were to change,
 
 
 class WaterDrop():
@@ -25,7 +26,8 @@ class WaterDrop():
                  erosionRate,
                  numberOfSteps,
                  maximumUnimprovedSteps,
-                 storeTrail):
+                 storeTrail,
+                 maximumNumberOfSteps):
 
         self.xPreviousStep = None
         self.yPreviousStep = None
@@ -43,6 +45,8 @@ class WaterDrop():
         self.unimprovedSteps = 0
         self.maximumUnimprovedSteps = maximumUnimprovedSteps
         self.numberOfUnimprovedSteps = 0
+        self.step = 0 # The number of steps taken
+        self.maximumNumberOfSteps = maximumNumberOfSteps # The amount of steps taken before termination
 
         self.velocity = 0
         self.waterAmount = 1
@@ -57,6 +61,7 @@ class WaterDrop():
         self.erosionRate = erosionRate
         self.erosionRadius = erosionRadius
         self.evaporationRate = 1+evaporationRate
+
 
 
     def StoreState(self):
@@ -99,9 +104,11 @@ class WaterDrop():
         :return:
         '''
         # If the drop were to go uphill it loses all it's velocity (!!!THIS SHOULD BE MODIFIED!!!)
+
         if self.heightDifference>0:
             self.velocity /= 2
         else:
+            #self.velocity = np.sqrt(self.velocity ** 2 - self.gravity * self.heightDifference)
             self.velocity = self.velocity/2 + np.arctan(-self.heightDifference) * self.gravity/np.pi
 
 
@@ -128,8 +135,17 @@ class WaterDrop():
         if self.heightDifference > 0:
             self.Deposit(depositAll=True)
         else:
-            self.sedimentCapacity = np.max((-self.heightDifference, self.minimumSlope)) * self.velocity * \
-                                    self.waterAmount * self.capacityMultiplier
+            #self.sedimentCapacity = np.max((-self.heightDifference, self.minimumSlope)) * self.velocity * \
+            #                        self.waterAmount * self.capacityMultiplier
+            # The sediment capacity is capped by the amount of water. Idealy It should be capped to a percentage,
+            # 30% for example, of the water amount.
+            #self.sedimentCapacity = np.min((self.waterAmount, np.max((-self.heightDifference, self.minimumSlope)) * self.velocity * self.capacityMultiplier))
+            self.sedimentCapacity = np.max((-self.heightDifference, self.minimumSlope)) * self.velocity * self.waterAmount * self.capacityMultiplier
+            #self.sedimentCapacity = self.velocity * self.waterAmount * self.capacityMultiplier
+            #print(self.sedimentCapacity, np.max((-self.heightDifference, self.minimumSlope)), self.velocity, self.waterAmount)
+            #self.sedimentCapacity = self.capacityMultiplier * np.min((self.waterAmount, np.max((-self.heightDifference, self.minimumSlope)) * self.velocity))
+            #self.sedimentCapacity = np.max((-self.heightDifference, self.minimumSlope)) * self.velocity * self.capacityMultiplier * self.waterAmount
+
             if self.sedimentAmount < self.sedimentCapacity:
                 self.Erode()
             else:
@@ -144,29 +160,85 @@ class WaterDrop():
         return NotImplementedError
 
 
-    def CheckImprovement(self):
+    #def CheckImprovement(self):
+    def CheckForTermination(self):
         '''
         This method is used to determine if the drop should be terminated. This is the case if the drop has traveled
         uphill for too long.
         :return:
         '''
-        if self.heightDifference > 0:
-            self.unimprovedSteps += 1
-            if self.unimprovedSteps >= self.maximumUnimprovedSteps:
-                self.Terminate()
+
+        nearestColumn = self._periodic(np.round(self.x)) # <--- column
+        nearestRow = self._periodic(np.round(self.y)) # <--- row
+
+
+        # If the number of steps has been reached the drop is terminated. (This is not optimal but it helps in avoiding
+        # infinite drops.)
+        self.step += 1
+        if self.step >= self.maximumNumberOfSteps:
+            self.Terminate()
         else:
-            self.unimprovedSteps = 0
+            # Check if a water segment has been reached, if so the drop should be dissolved in the water.
+            potentialIDOfCell = self.waterSegmentIdentificationMap[nearestRow.astype(int) + nearestColumn.astype(int) * self.gridSize]
+            if potentialIDOfCell is not None:
+                self.Terminate(potentialIDOfCell)
+            else:
+                # Check if the drop has traveled uphill, and if so for how many turns. The drop is detstroyed if it has
+                # traveled uphill for too many steps.
+                if self.heightDifference > 0:
+                    self.unimprovedSteps += 1
+                    if self.unimprovedSteps >= self.maximumUnimprovedSteps:
+                        self.Terminate()
+                else:
+                    self.unimprovedSteps = 0
 
 
     def Evaporate(self):
         self.waterAmount /= self.evaporationRate
 
 
-    def Terminate(self):
+    def Terminate(self, waterSegmentID = None):
         '''
         Before the drop is terminated all the sediment is deposited.
         :return:
         '''
+        nearestColumn = self._periodic(np.round(self.x)) # <--- column
+        nearestRow = self._periodic(np.round(self.y)) # <--- row
+
+        # Check if a waterSegmentID value was given as function input, in not a star cell is computed.
+        if waterSegmentID is None:
+            [a, b, waterSegmentID] = FluidDynamics.FluidSegment.GetStartCell(nearestRow, nearestColumn)
+
+
+        '''
+        NOTE THAT THE WATER CALCULATIONS HAS BEEN TURNED OFF. TO ENABLE THE CALCULATIONS THE '#' SIGNS SHOULD BE REMOVED
+        FROM THE .INIITATEFLOW() METHOD CALLS.
+        '''
+
+
+        # Check if the start cell is part of a segment or not. If it is fluid will be added to that segment, if not a
+        # new segment will be created.
+        if waterSegmentID is None:
+            # SEGMENT IS CREATED
+            createdWaterSegment = FluidDynamics.FluidSegment(self.waterAmount, a[0, 0], a[0, 1])
+            #createdWaterSegment.InitiateFlow()  # Makes the water flow and fill up adjacent tiles.
+
+            # Adds the newly created water segment to the water segment list
+            self.waterSegments.append(createdWaterSegment)
+        else:
+            # FLUID IS ADDED TO SEGMENT
+            encounteredSegmentID = waterSegmentID
+
+            # This could be done using a better search algorithm. The better search algorithm would start
+            # the search in the middle of the list and then divide the list into two parts. The next step is
+            # to repeat the procedure until the correct object has been found. This is an efficient search
+            # mechanism but can only be performed if the objects are sorted by their ID.
+            # Gets the specific segment object for which the ID is known.
+            for waterSegment in self.waterSegments:
+                if encounteredSegmentID == waterSegment.ID:
+                    waterSegment.availableFluid = +self.waterAmount
+                    #waterSegment.InitiateFlow()
+                    break
         self.dropList.remove(self)
 
 
@@ -182,7 +254,8 @@ class WaterDrop():
         self.Move()
         self.UpdateVelocity()
         self.DepositOrErode()
-        self.CheckImprovement()
+        #self.CheckImprovement()
+        self.CheckForTermination()
         self.Evaporate()
 
     def __repr__(self):
@@ -210,7 +283,7 @@ class WaterDrop():
         self._y = self._periodic(value)
 
     @classmethod
-    def LinkToHeightMap(cls, rockMap, sedimentMap, totalHeightMap):
+    def LinkToHeightMap(cls, rockMap, sedimentMap, totalHeightMap, waterMap, waterSegmentIdentificationMap):
         '''
         This is used in order for the drop to have access to the heightmap. If the heightMap were to be changed by
         one drop all other drops would also notice the change. When assigning the gridSize the heightMap is assumed
@@ -221,7 +294,10 @@ class WaterDrop():
         cls.rockMap = rockMap
         cls.sedimentMap = sedimentMap
         cls.totalHeightMap = totalHeightMap
+        cls.waterMap = waterMap
         cls.gridSize = np.shape(rockMap)[0]
+        # Used to identify which tiles are part of which water segments
+        cls.waterSegmentIdentificationMap = waterSegmentIdentificationMap
 
 
     @classmethod
@@ -230,10 +306,13 @@ class WaterDrop():
         # Used when drops are to "kill" themself.
         cls.dropList = dropList
 
+    @classmethod
+    def LinkToWaterSegments(cls, waterSegments):
+        # Gives all the drops access to all the water segments.
+        cls.waterSegments = waterSegments
 
     @classmethod
     def InitializeErosionTemplates(cls, maximumErosionRadius):
-
         # Initializes lists used as templates when eroding multiple tiles.
         for radius in range(0, maximumErosionRadius):
             rows = range(-radius, radius, 1)
@@ -276,7 +355,7 @@ class ContinuousDrop(WaterDrop):
                  x = None,
                  y = None,
                  inertia = 0.3,
-                 gravity = 10,
+                 gravity = 4,
                  evaporationRate = 0.02,
                  capacityMultiplier = 40,
                  minimumSlope = 0.005,
@@ -285,7 +364,8 @@ class ContinuousDrop(WaterDrop):
                  erosionRate = 0.1,
                  numberOfSteps = 64,
                  maximumUnimprovedSteps = 1,
-                 storeTrail = False):
+                 storeTrail = False,
+                 maximumNumberOfSteps = 100):
         '''
         :param gridSize:
         :param x:
@@ -312,7 +392,8 @@ class ContinuousDrop(WaterDrop):
                          erosionRate,
                          numberOfSteps,
                          maximumUnimprovedSteps,
-                         storeTrail)
+                         storeTrail,
+                         maximumNumberOfSteps)
 
         # If x and y values are not given they will be randomized to be within the grid.
         if x is None:
@@ -393,11 +474,13 @@ class ContinuousDrop(WaterDrop):
             gradient[0] = np.cos(randomAngle)
             gradient[1] = np.sin(randomAngle)
         else:
-            gradient /= np.linalg.norm(gradient)
+            gradient /= gradientNorm
 
         # The direction of the water drop is updated. This should depend on the drops inertia (velocity and mass), right
-        #  now a constant inertai is used.
-        self.direction = self.direction * self.inertia - gradient * (1-self.inertia)
+        #  now a constant inertia is used.
+        #self.direction = self.direction * self.inertia - gradient * (1-self.inertia)
+        self.direction = self.direction * self.inertia * self.velocity**2 - gradient * (1-self.inertia)
+
         self.direction /= np.linalg.norm(self.direction)
 
 
@@ -424,12 +507,17 @@ class ContinuousDrop(WaterDrop):
             depositionAmount = (self.sedimentAmount - self.sedimentCapacity) * self.depositionRate
 
         # Material is added to the map and sediment is removed from the drop.
-        #self.heightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
-        #    depositionAmount * heightDifferences / np.sum(heightDifferences)
-        self.sedimentMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
+        self.rockMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
             depositionAmount * heightDifferences / np.sum(heightDifferences)
+
+        # --------# --------# --------
+        #self.sedimentMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
+        #    depositionAmount * heightDifferences / np.sum(heightDifferences)
+        # --------# --------# --------
         self.totalHeightMap[tilesToDeposit[:, 0].astype(int), tilesToDeposit[:, 1].astype(int)] += \
             depositionAmount * heightDifferences / np.sum(heightDifferences)
+
+
         # One could probably optimize this step and not change values in both the sedimentMap and the totalHeightMap.
         self.sedimentAmount -= depositionAmount
 
@@ -458,10 +546,16 @@ class ContinuousDrop(WaterDrop):
         # This problem should be very minor until the weathering process is implemented.
 
         # Material is removed from the map and sediment is added to the drop.
-        self.rockMap[rockTilesToErode[:, 0].astype(int), rockTilesToErode[:, 1].astype(int)] -=\
-            erosionAmount * erosionWeights[a<1]
-        self.sedimentMap[sedimentTilesToErode[:, 0].astype(int), sedimentTilesToErode[:, 1].astype(int)] -= \
-            erosionAmount * erosionWeights[a==1]
+
+        # --------#--------#--------
+        #self.rockMap[rockTilesToErode[:, 0].astype(int), rockTilesToErode[:, 1].astype(int)] -=\
+        #    erosionAmount * erosionWeights[a<1]
+        #self.sedimentMap[sedimentTilesToErode[:, 0].astype(int), sedimentTilesToErode[:, 1].astype(int)] -= \
+        #    erosionAmount * erosionWeights[a==1]
+        # --------#--------#--------
+
+        self.rockMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -= \
+            erosionAmount * erosionWeights
         self.totalHeightMap[tilesToErode[:, 0].astype(int), tilesToErode[:, 1].astype(int)] -= \
             erosionAmount * erosionWeights
         self.sedimentAmount += erosionAmount

@@ -18,6 +18,7 @@ The program will create a severe bug if parallell drops are used (numberOfDrops 
 '''
 
 import Simulation.Erosion.Hydrolic.WDA as WDA
+import Simulation.FluidDynamics as FlDyn # Be aware that this needs to change if the folder structure were to change,
 import Simulation.Noise as Noise
 import Visualization
 import numpy as np
@@ -28,25 +29,31 @@ import cProfile
 #                    SETTINGS
 #=================================================
 mapSize = 512
-initialMaximumHeight = 100
-numberOfRuns = 100
-numberOfDrops = 1000 # This do not need to be 1 but changing it does not result in true parallel drops.
-numberOfSteps = 64
+initialMaximumHeight = 300
+numberOfRuns = 1000
+numberOfDrops = 100 # This do not need to be 1 but changing it does not result in true parallel drops.
+numberOfSteps = 100
+waterCalculationFrequency = 2000 # The number of drops simulated between each set of flood/spill calculations.
 maximumErosionRadius = 10  # This determines how many erosion templates should be created.
 
-inertia = 0.3
-capacityMultiplier = 200
+
+#http://eveliosdev.blogspot.com
+
+inertia = 0.7
+capacityMultiplier = 40
 depositionRate = 0.1
 erosionRate = 0.1
-erosionRadius = 3
+erosionRadius = 4
+evaporationRate = 0.01
 maximumUnimprovedSteps = 5
 
 
-
 displaySurface = True
-displayTrail = False
+displayTrail = False # This is not implemented in the mayavi version of the program.
 performProfiling = False
 saveWorld = False
+PRINT_WATER_SEGMENT_LIST = False
+
 
 #100000  = 20 minuter
 #1000000 = 3 timmar
@@ -54,8 +61,26 @@ saveWorld = False
 
 
 # The height map is generated from "simple noise".
-heightMap = Noise.SimpleNoise(mapSize,1,2)
+heightMap = Noise.SimpleNoise(mapSize,2,2)
 heightMap *= initialMaximumHeight
+
+
+'''
+heightMap = np.zeros((mapSize, mapSize))
+for x in range(mapSize):
+    for y in range(mapSize):
+        heightMap[x, y] -= 1 / (1 + 0.1 * ((x - mapSize / 2) ** 2 + (y - mapSize / 2) ** 2)**(1.8))
+        heightMap[x, y] -= 1 / (1 + 0.1 * ((x - 2 * mapSize / 3) ** 2 + (y - mapSize / 2) ** 2)**(1.4))
+        heightMap[x, y] -= 1 / (1 + 0.1 * ((x - mapSize / 2) ** 2 + (y - 2 * mapSize / 3) ** 2)**(1))
+        heightMap[x, y] -= 1 / (1 + 0.1 * ((x - 1 * mapSize / 3) ** 2 + (y - mapSize / 2) ** 2)**(0.6))
+        heightMap[x, y] -= 1 / (1 + 0.1 * ((x - mapSize / 2) ** 2 + (y - 1 * mapSize / 3) ** 2)**(0.2))
+'''
+
+heightMap -= np.min(heightMap)
+heightMap /= np.max(heightMap)
+heightMap *= initialMaximumHeight
+
+
 '''
 # THIS CODE GENERATES INITIAL HILLS/MOUNTAINS
 heightMap = np.zeros((mapSize, mapSize))
@@ -80,10 +105,17 @@ heightMap *= initialMaximumHeight
 initialRockMap = heightMap.copy() # Used to determine where sediment has accumulated.
 initialSedimentMap = np.zeros((mapSize, mapSize))
 initialTotalMap = heightMap.copy()
+initialWaterMap = np.zeros((mapSize, mapSize))
 
 rockMap = initialRockMap.copy()
 sedimentMap = initialSedimentMap.copy()
 totalHeightMap = heightMap.copy() + sedimentMap.copy()
+waterMap = initialWaterMap.copy() # Contains the depth of water for each cell.
+
+# Contains the ID value of each water segment. None symbolizes that there are no segment- or border-cells in those
+# specific cells. A positive value indicates a specific segment ID, a negative indicates a specific border for the
+# corresponding ID.
+waterSegmentIdentificationMap = [None for i in range(mapSize**2)]
 print('Noise has been generated')
 
 
@@ -92,11 +124,27 @@ window = Visualization.MayaviWindow()
 window.Surf(initialRockMap, type='terrain', scene='original')
 
 
+waterSegments = []# A list which will store the segment objects created.
+drops = []
+
+# Links the FluidSegment class to the heightmaps. These maps are used to determine how the water flows.
+FlDyn.FluidSegment.LinkToHeightMap(rockMap, sedimentMap, totalHeightMap, waterMap, waterSegmentIdentificationMap)
+FlDyn.FluidSegment.LinkToWaterSegments(waterSegments)
+FlDyn.FluidSegment.LinkToDropParameters(inertia=inertia,
+                                        capacityMultiplier=capacityMultiplier,
+                                        depositionRate=depositionRate,
+                                        erosionRate=erosionRate,
+                                        erosionRadius=erosionRadius,
+                                        evaporationRate=evaporationRate,
+                                        maximumUnimprovedSteps= maximumUnimprovedSteps,
+                                        maximumNumberOfSteps=numberOfSteps)
+
 # Creates templates used by all the drops.
-WDA.WaterDrop.LinkToHeightMap(rockMap, sedimentMap, totalHeightMap)
+WDA.WaterDrop.LinkToHeightMap(rockMap, sedimentMap, totalHeightMap, waterMap, waterSegmentIdentificationMap)
 WDA.WaterDrop.InitializeErosionTemplates(maximumErosionRadius)
 WDA.ContinuousDrop.InitializeAdjacentTileTemplate()
 WDA.DiscreteDrop.InitializeAdjacentTileTemplate()
+WDA.ContinuousDrop.LinkToWaterSegments(waterSegments)
 
 
 if performProfiling:
@@ -104,7 +152,7 @@ if performProfiling:
     pr.enable()
 
 
-print('Amount of material before simulation: %s' % np.sum(heightMap))
+print('Amount of material before simulation: ', np.sum(rockMap) + np.sum(sedimentMap))
 tic = time.time()
 for iRun in range(numberOfRuns):
     # Create the drops
@@ -116,19 +164,69 @@ for iRun in range(numberOfRuns):
                            depositionRate=depositionRate,
                            erosionRate=erosionRate,
                            erosionRadius=erosionRadius,
-                           maximumUnimprovedSteps = maximumUnimprovedSteps) for index in range(numberOfDrops)]
+                           evaporationRate = evaporationRate,
+                           maximumUnimprovedSteps = maximumUnimprovedSteps,
+                           maximumNumberOfSteps= numberOfSteps) for index in range(numberOfDrops)]
     WDA.WaterDrop.LinkToDrops(drops)
+    FlDyn.FluidSegment.LinkToDrops(drops)
     # Performs the drop simulation, step by step.
-    for iStep in range(numberOfSteps):
+    while drops.__len__() > 0:
+    #for iStep in range(numberOfSteps):
         for drop in drops:
             drop()
+            #print(drop)
+        #if drops.__len__() > 1:
+            #print(drops.__len__())
+        #print(waterSegments.__len__())
+    #print('--------=========== hej ============---------')
+    '''
+    if iRun % waterCalculationFrequency == 0:
+        print(' ')
+        print('water calculations are performed')
 
 
+        waterSegmentIdentificationMap = [None for i in range(mapSize ** 2)]
+        FlDyn.FluidSegment.LinkToHeightMap(rockMap, sedimentMap, totalHeightMap, waterMap,
+                                           waterSegmentIdentificationMap)
+
+        totalHeightMap -= waterMap
+        waterMap = np.zeros((mapSize, mapSize))
+
+        for waterSegment in waterSegments:
+            #[initialCell, self.fluidElevation] = self.GetLowestCell(initialRow, initialColumn)
+            waterSegmentIdentificationMap[waterSegment.interiorCells[0][0, 0].astype(int) + waterSegment.interiorCells[0][0, 1].astype(int) * mapSize] = waterSegment.ID
+            waterSegment.interiorCells = [waterSegment.interiorCells[0]]
+            waterSegment.fluidElevation = totalHeightMap[waterSegment.interiorCells[0][0, 0].astype(int) + waterSegment.interiorCells[0][0, 1].astype(int)*mapSize]
+            waterSegment.fluidAmount = [0]  # The amount of fluid in each cell.
+            waterSegment.totalFluidAmount = 0  # The total amount of fluid among all the cells.
+            waterSegment.availableFluid += waterSegment.totalFluidAmount  # The amount of fluid which has not yet been used to flood adjacent tiles.
+
+            # The borderCells are sorted from highest elevation (first element) to lowest elevation (last element).
+            waterSegment.borderCells = []
+            waterSegment.borderElevation = []  # The elevation value of the border cells.
+
+
+
+        for waterSegment in waterSegments:
+            
+            # Consider adding a Reset() method to the FluidDynamics class.
+            #waterSegment.availableFluid += waterSegment.totalFluidAmount
+            #waterSegment.totalFluidAmount = 0
+            #waterSegment.interiorCells = [waterSegment.interiorCells[0]]
+            #waterSegment.fluidAmount = [0]
+            #waterSegment.borderCells = []
+            #waterSegment.borderElevation = []
+            #waterSegmentIdentificationMap[
+            #    waterSegment.interiorCells[0][0, 0].astype(int) + waterSegment.interiorCells[0][0, 1].astype(int) * mapSize] = waterSegment.ID
+            
+
+            waterSegment.InitiateFlow()
+    '''
 toc = time.time()
 print('elapsed time : %s sec' % (toc - tic))
-print('Amount of material after simulation: %s' % np.sum(heightMap))
+print('Amount of material after simulation: ', np.sum(rockMap) + np.sum(sedimentMap))
 
-
+'''
 print(np.min(rockMap))
 print(np.max(rockMap))
 
@@ -140,7 +238,7 @@ print(np.max(totalHeightMap))
 
 print(np.min(rockMap + sedimentMap))
 print(np.max(rockMap + sedimentMap))
-
+'''
 
 
 if performProfiling:
@@ -157,9 +255,11 @@ if saveWorld:
     world = Storage.World(initialRockMap,
                           initialSedimentMap,
                           initialTotalMap,
+                          initialWaterMap,
                           rockMap,
                           sedimentMap,
                           totalHeightMap,
+                          waterMap,
                           numberOfRuns,
                           numberOfDrops,
                           numberOfSteps,
@@ -170,6 +270,24 @@ if saveWorld:
                           erosionRadius,
                           maximumUnimprovedSteps)
     pickle.dump(world, open('Worlds/' + now.strftime("%Y-%m-%d %H:%M") + '.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+    from PIL import Image
+
+    snapshotMap = 255*totalHeightMap/np.max(totalHeightMap)
+    #np.repeat()
+    img = Image.fromarray(snapshotMap.astype('uint8'), 'L') #  astype('uint8')  'L'
+    #img.show()
+    #img = img.rotate(90) # The rotation is necessary for the image to align with the surface properly.
+    #img = img.transpose(Image.TRANSPOSE)  # The rotation is necessary for the image to align with the surface properly.
+    img.save('Worlds/' + now.strftime("%Y-%m-%d %H:%M") + '.png')
+
+
+
+if PRINT_WATER_SEGMENT_LIST:
+    for waterSegment in waterSegments:
+        print('Segment ID: ', waterSegment.ID)
+        print('Total fluid amount: ', waterSegment.totalFluidAmount)
+        print('Available fluid: ', waterSegment.availableFluid)
+        print('')
 
 
 # Visualizes the eroded terrain.
@@ -190,9 +308,15 @@ if displaySurface:
     #window.Surf(30+np.zeros([mapSize, mapSize]), type='water', scene='updated')
     #window.Surf(c, type='water', scene='updated')
 
-    np.min(sedimentMap)
-    heightMap[sedimentMap == 0] = 0
-    window.Surf(heightMap + sedimentMap, type='sediment', scene='updated')
+    a = rockMap.copy()
+    a[waterMap == 0] = 0
+    window.Surf(a + waterMap, type='water', scene='updated')
+    print('Maximum water depth: ', np.max(waterMap))
+    print('Total amount of water: ', np.sum(waterMap))
+
+    #np.min(sedimentMap)
+    rockMap[sedimentMap == 0] = 0
+    window.Surf(rockMap + sedimentMap, type='sediment', scene='updated')
     #window.SedimentColour(sedimentMap)
 
     window.configure_traits()

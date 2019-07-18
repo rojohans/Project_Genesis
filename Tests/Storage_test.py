@@ -25,13 +25,18 @@ The code below should be contained within a function in the Visualization module
 '''
 # Creates a mayavi window and visualizes the initial terrain.
 window = Visualization.MayaviWindow()
-window.Surf(world.initialTotalMap, type='terrain', scene='original')
+window.Surf(world.totalHeightMap, type='terrain', scene='original')
+#window.Surf(world.initialTotalMap, type='terrain', scene='original')
+
+
 
 # Visualizes the eroded terrain.
+
 window.Surf(world.rockMap, type='terrain', scene='updated')
 rockMapCopy = world.rockMap.copy()
-rockMapCopy[world.sedimentMap == 0] = 0
+rockMapCopy[world.sedimentMap <0.05] = 0 # == 0
 window.Surf(rockMapCopy + world.sedimentMap, type='sediment', scene='updated')
+#window.Surf(world.totalHeightMap, type='terrain', scene='updated')
 
 window.configure_traits()
 

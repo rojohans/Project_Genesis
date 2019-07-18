@@ -55,7 +55,8 @@ class MayaviWindow(HasTraits):
                 surfaceOpacity = 0.5
             else:
                 if type == 'sediment':
-                    surfaceColour = (0.25, 0.15, 0.15)
+                    surfaceColour = (0.5, 0.45, 0.4)
+                    #(0.25, 0.15, 0.15)
                     surfaceOpacity = 1
 
         # Adds the surface to the selected scene.
