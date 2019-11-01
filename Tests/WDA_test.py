@@ -30,7 +30,7 @@ import cProfile
 #=================================================
 mapSize = 512
 initialMaximumHeight = 300
-numberOfRuns = 1000
+numberOfRuns = 1
 numberOfDrops = 100 # This do not need to be 1 but changing it does not result in true parallel drops.
 numberOfSteps = 100
 waterCalculationFrequency = 2000 # The number of drops simulated between each set of flood/spill calculations.
@@ -50,8 +50,8 @@ maximumUnimprovedSteps = 5
 
 displaySurface = True
 displayTrail = False # This is not implemented in the mayavi version of the program.
-performProfiling = False
-saveWorld = False
+performProfiling = True
+saveWorld = True
 PRINT_WATER_SEGMENT_LIST = False
 
 

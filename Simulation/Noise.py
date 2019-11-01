@@ -203,110 +203,393 @@ def FractalNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsTo
     return generatedNoise
 
 
+
+
+
+
 def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToSkip = 1, amplitudeReduction = 2):
+    if False:
+        # Indicates the location of the gradient vectors.
+        xMesh, yMesh, zMesh = np.meshgrid(np.linspace(-1, 1, gridSize+1),
+                                          np.linspace(-1, 1, gridSize+1),
+                                          np.linspace(-1, 1, gridSize+1))
+        xGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        yGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        zGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        gradientMagnitude = np.sqrt(xGradient ** 2 + yGradient ** 2 + zGradient ** 2)
+        xGradient /= gradientMagnitude
+        yGradient /= gradientMagnitude
+        zGradient /= gradientMagnitude
+        xGradient[:, :, -1] = xGradient[:, :, 0]
+        yGradient[:, :, -1] = yGradient[:, :, 0]
+        zGradient[:, :, -1] = zGradient[:, :, 0]
+        xGradient[:, -1, :] = xGradient[:, 0, :]
+        yGradient[:, -1, :] = yGradient[:, 0, :]
+        zGradient[:, -1, :] = zGradient[:, 0, :]
+        xGradient[-1, :, :] = xGradient[0, :, :]
+        yGradient[-1, :, :] = yGradient[0, :, :]
+        zGradient[-1, :, :] = zGradient[0, :, :]
+
+        meshDistance = xMesh[0, 1, 0] - xMesh[0, 0, 0]
+        xMesh /= meshDistance
+        yMesh /= meshDistance
+        zMesh /= meshDistance
+        sphericalPoints /= meshDistance
+        minimumMeshValue = np.min(xMesh)
+        xMesh -= minimumMeshValue
+        yMesh -= minimumMeshValue
+        zMesh -= minimumMeshValue
+        sphericalPoints -= minimumMeshValue
+        sphericalPoints *= 0.98
+        sphericalPoints += 0.01 * sphericalPoints
+
+        generatedNoise = np.zeros((np.size(sphericalPoints, 0), 1))
+
+        basisFunctionDistance = np.zeros((8, 1))
+        basisTemplate = np.array([[0, 0, 0],
+                                              [1, 0, 0],
+                                              [0, 1, 0],
+                                              [0, 0, 1],
+                                              [1, 1, 0],
+                                              [1, 0, 1],
+                                              [0, 1, 1],
+                                              [1, 1, 1],
+                                             ])
+
+        for point, iPoint in zip(sphericalPoints, range(0, np.size(sphericalPoints, 0))):
+            flooredPoint = np.floor(point)
+            pointOffset = point - flooredPoint
+            pointOffset = 6*pointOffset**5 - 15*pointOffset**4 + 10*pointOffset**3 # standard smooth interpolation.
 
 
-    # Indicates the location of the gradient vectors.
-    xMesh, yMesh, zMesh = np.meshgrid(np.linspace(-1, 1, gridSize+1),
-                                      np.linspace(-1, 1, gridSize+1),
-                                      np.linspace(-1, 1, gridSize+1))
-    xGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
-    yGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
-    zGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
-    gradientMagnitude = np.sqrt(xGradient ** 2 + yGradient ** 2 + zGradient ** 2)
-    xGradient /= gradientMagnitude
-    yGradient /= gradientMagnitude
-    zGradient /= gradientMagnitude
-    xGradient[:, :, -1] = xGradient[:, :, 0]
-    yGradient[:, :, -1] = yGradient[:, :, 0]
-    zGradient[:, :, -1] = zGradient[:, :, 0]
-    xGradient[:, -1, :] = xGradient[:, 0, :]
-    yGradient[:, -1, :] = yGradient[:, 0, :]
-    zGradient[:, -1, :] = zGradient[:, 0, :]
-    xGradient[-1, :, :] = xGradient[0, :, :]
-    yGradient[-1, :, :] = yGradient[0, :, :]
-    zGradient[-1, :, :] = zGradient[0, :, :]
+            for i in range(8):
+                basisFunctionDistance[i, 0] = np.sqrt((basisTemplate[i, 0]-pointOffset[0])**2
+                                                      +(basisTemplate[i, 1]-pointOffset[1])**2
+                                                      +(basisTemplate[i, 2]-pointOffset[2])**2)
 
-    meshDistance = xMesh[0, 1, 0] - xMesh[0, 0, 0]
-    xMesh /= meshDistance
-    yMesh /= meshDistance
-    zMesh /= meshDistance
-    sphericalPoints /= meshDistance
-    minimumMeshValue = np.min(xMesh)
-    xMesh -= minimumMeshValue
-    yMesh -= minimumMeshValue
-    zMesh -= minimumMeshValue
-    sphericalPoints -= minimumMeshValue
-    sphericalPoints *= 0.98
-    sphericalPoints += 0.01 * sphericalPoints
+            #pointOffset[:] /= np.sqrt(pointOffset[0]**2 + pointOffset[1]**2 + pointOffset[2]**2)
+            #pointOffset[:] *= basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
+            #pointOffset[:] /= np.max(pointOffset)
+            #print(basisFunctionDistance)
+            #quit()
+            #pointOffset = (np.sin(pointOffset*np.pi-np.pi/2)+1)/2
+            # Meshes for the surrounding gradients coordinates.
+            minorxMesh, minoryMesh, minorzMesh = np.meshgrid(
+                np.linspace(flooredPoint[0], flooredPoint[0]+1, 2),
+                np.linspace(flooredPoint[1], flooredPoint[1]+1, 2),
+                np.linspace(flooredPoint[2], flooredPoint[2]+1, 2))
 
-    generatedNoise = np.zeros((np.size(sphericalPoints, 0), 1))
+            minorxGradient = xGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
+            minoryGradient = yGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
+            minorzGradient = zGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
 
-    basisFunctionDistance = np.zeros((8, 1))
-    basisTemplate = np.array([[0, 0, 0],
-                                          [1, 0, 0],
-                                          [0, 1, 0],
-                                          [0, 0, 1],
-                                          [1, 1, 0],
-                                          [1, 0, 1],
-                                          [0, 1, 1],
-                                          [1, 1, 1],
-                                         ])
+            xDistanceVector = minorxMesh - point[0]
+            yDistanceVector = minoryMesh - point[1]
+            zDistanceVector = minorzMesh - point[2]
+            # These 4 lines can be used to normalize the distance vectors.
+            #r = np.sqrt(xDistanceVector**2 + yDistanceVector**2 + zDistanceVector**2)
+            #xDistanceVector /= r
+            #yDistanceVector /= r
+            #zDistanceVector /= r
 
-    for point, iPoint in zip(sphericalPoints, range(0, np.size(sphericalPoints, 0))):
-        flooredPoint = np.floor(point)
-        pointOffset = point - flooredPoint
-        pointOffset = 6*pointOffset**5 - 15*pointOffset**4 + 10*pointOffset**3 # standard smooth interpolation.
+            influenceValues = minorxGradient*xDistanceVector + minoryGradient*yDistanceVector + minorzGradient*zDistanceVector
+
+            # Performs the trilinear interpolation.
+            influenceValues = influenceValues[0, :, :] * (1 - pointOffset[1]) + influenceValues[1, :, :] * pointOffset[1]
+            influenceValues = influenceValues[0, :] * (1 - pointOffset[0]) + influenceValues[1, :] * pointOffset[0]
+            #influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
+            #influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
+            influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
+
+            # ---------------------------------------------
+            # ---------------------------------------------
+            generatedNoise[iPoint, 0] = influenceValues
+            #generatedNoise[iPoint, 0] = np.sum(influenceValues) * basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
+            #generatedNoise[iPoint, 0] =  basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
+            #generatedNoise[iPoint, 0] = 2*np.sum(influenceValues) + np.sum(basisFunctionDistance)
+            #print(basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)])
+            # ---------------------------------------------
+            # ---------------------------------------------
+    else:
+        multiLayerNoise = np.zeros((np.size(sphericalPoints, 0), 1))
+
+        xGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        yGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        zGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        gradientMagnitude = np.sqrt(xGradient ** 2 + yGradient ** 2 + zGradient ** 2)
+        xGradient /= gradientMagnitude
+        yGradient /= gradientMagnitude
+        zGradient /= gradientMagnitude
+        xGradient[:, :, -1] = xGradient[:, :, 0]
+        yGradient[:, :, -1] = yGradient[:, :, 0]
+        zGradient[:, :, -1] = zGradient[:, :, 0]
+        xGradient[:, -1, :] = xGradient[:, 0, :]
+        yGradient[:, -1, :] = yGradient[:, 0, :]
+        zGradient[:, -1, :] = zGradient[:, 0, :]
+        xGradient[-1, :, :] = xGradient[0, :, :]
+        yGradient[-1, :, :] = yGradient[0, :, :]
+        zGradient[-1, :, :] = zGradient[0, :, :]
+
+        # The sphereRadius is used to change the radius of the sphere such that the sphere lies within the cube of
+        # gradient vectors.
+        sphereRadius = np.sum(np.sqrt(np.sum(sphericalPoints**2, 1)))/np.size(sphericalPoints, 0)
+        while gridSize > 1:
+            #print(np.shape(xGradient[0, :, :]))
+            print('gridsize = ', gridSize)
+
+            sphericalPoints /= sphereRadius
+            sphereRadius = 0.95*(gridSize/2-0.5)
+            sphericalPoints *= sphereRadius
+
+            # Used to store the noise for a single resolution layer.
+            singleLayerNoise = np.zeros((np.size(sphericalPoints, 0), 1))
+            for iPoint, point in enumerate(sphericalPoints):
+                flooredPoint = np.floor(point)
+                pointOffset = point - flooredPoint
+                # pointOffset = 0.5-np.cos(pointOffset*np.pi)/2;
+                pointOffset = 6 * pointOffset ** 5 - 15 * pointOffset ** 4 + 10 * pointOffset ** 3  # standard smooth interpolation.
+
+                # The indexing needs to be 'ij' in order for the indexing to match with other arrays in the code.
+                # By default it is 'xy'
+                adjacentGridx, adjacentGridy, adjacentGridz = np.meshgrid(
+                    np.linspace(flooredPoint[0], flooredPoint[0] + 1, 2),
+                    np.linspace(flooredPoint[1], flooredPoint[1] + 1, 2),
+                    np.linspace(flooredPoint[2], flooredPoint[2] + 1, 2), indexing='ij')
+
+                adjacentGradientx = xGradient[adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
+                adjacentGradienty = yGradient[adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
+                adjacentGradientz = zGradient[adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
+
+                distanceVectorx = adjacentGridx - point[0]
+                distanceVectory = adjacentGridy - point[1]
+                distanceVectorz = adjacentGridz - point[2]
+
+                # These are the noise values at each grid point. To create the final noise one has to inperpolate between these.
+                influenceValues = adjacentGradientx * distanceVectorx +\
+                                  adjacentGradienty * distanceVectory +\
+                                  adjacentGradientz * distanceVectorz
+
+                # Performs the trilinear interpolation.
+                influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
+                influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
+                influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
+
+                singleLayerNoise[iPoint, 0] = influenceValues
+
+            multiLayerNoise += singleLayerNoise / gridSize
 
 
-        for i in range(8):
-            basisFunctionDistance[i, 0] = np.sqrt((basisTemplate[i, 0]-pointOffset[0])**2
-                                                  +(basisTemplate[i, 1]-pointOffset[1])**2
-                                                  +(basisTemplate[i, 2]-pointOffset[2])**2)
 
-        #pointOffset[:] /= np.sqrt(pointOffset[0]**2 + pointOffset[1]**2 + pointOffset[2]**2)
-        #pointOffset[:] *= basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
-        #pointOffset[:] /= np.max(pointOffset)
-        #print(basisFunctionDistance)
-        #quit()
-        #pointOffset = (np.sin(pointOffset*np.pi-np.pi/2)+1)/2
-        # Meshes for the surrounding gradients coordinates.
-        minorxMesh, minoryMesh, minorzMesh = np.meshgrid(
-            np.linspace(flooredPoint[0], flooredPoint[0]+1, 2),
-            np.linspace(flooredPoint[1], flooredPoint[1]+1, 2),
-            np.linspace(flooredPoint[2], flooredPoint[2]+1, 2))
+            # Every second gradient is discarded, this changes the resolution of the noise.
+            gridSize /= 2
+            xGradient = xGradient[0::2, 0::2, 0::2]
+            yGradient = yGradient[0::2, 0::2, 0::2]
+            zGradient = zGradient[0::2, 0::2, 0::2]
+        return multiLayerNoise
+        quit()
+        # ==============================================================================================================
+        # ==============================================================================================================
+        # ==============================================================================================================
 
-        minorxGradient = xGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
-        minoryGradient = yGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
-        minorzGradient = zGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
+        #print(gridSize)
 
-        xDistanceVector = minorxMesh - point[0]
-        yDistanceVector = minoryMesh - point[1]
-        zDistanceVector = minorzMesh - point[2]
-        # These 4 lines can be used to normalize the distance vectors.
-        #r = np.sqrt(xDistanceVector**2 + yDistanceVector**2 + zDistanceVector**2)
-        #xDistanceVector /= r
-        #yDistanceVector /= r
-        #zDistanceVector /= r
+        # Indicates the location of the gradient vectors.
+        xMesh, yMesh, zMesh = np.meshgrid(np.linspace(-1, 1, gridSize + 1),
+                                          np.linspace(-1, 1, gridSize + 1),
+                                          np.linspace(-1, 1, gridSize + 1),indexing = 'ij')
 
-        influenceValues = minorxGradient*xDistanceVector + minoryGradient*yDistanceVector + minorzGradient*zDistanceVector
+        # Consider creating the gradient vectors by initializing vectors within the unit cube, and only keeping the
+        # vectors inside the unit sphere.
+        xGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        yGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        zGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+        gradientMagnitude = np.sqrt(xGradient ** 2 + yGradient ** 2 + zGradient ** 2)
+        xGradient /= gradientMagnitude
+        yGradient /= gradientMagnitude
+        zGradient /= gradientMagnitude
 
-        # Performs the trilinear interpolation.
-        influenceValues = influenceValues[0, :, :] * (1 - pointOffset[1]) + influenceValues[1, :, :] * pointOffset[1]
-        influenceValues = influenceValues[0, :] * (1 - pointOffset[0]) + influenceValues[1, :] * pointOffset[0]
-        #influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
-        #influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
-        influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
+        # Makes the gradient matrices periodical
+        xGradient[:, :, -1] = xGradient[:, :, 0]
+        yGradient[:, :, -1] = yGradient[:, :, 0]
+        zGradient[:, :, -1] = zGradient[:, :, 0]
+        xGradient[:, -1, :] = xGradient[:, 0, :]
+        yGradient[:, -1, :] = yGradient[:, 0, :]
+        zGradient[:, -1, :] = zGradient[:, 0, :]
+        xGradient[-1, :, :] = xGradient[0, :, :]
+        yGradient[-1, :, :] = yGradient[0, :, :]
+        zGradient[-1, :, :] = zGradient[0, :, :]
 
-        # ---------------------------------------------
-        # ---------------------------------------------
-        generatedNoise[iPoint, 0] = influenceValues
-        #generatedNoise[iPoint, 0] = np.sum(influenceValues) * basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
-        #generatedNoise[iPoint, 0] =  basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
-        #generatedNoise[iPoint, 0] = 2*np.sum(influenceValues) + np.sum(basisFunctionDistance)
-        #print(basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)])
-        # ---------------------------------------------
-        # ---------------------------------------------
+        # Scales the gradient mesh so that each point is separated by a value 1 from the closest point. The sphere is
+        # also placed within the cube of gradient vectors.
+        meshDistance = xMesh[0, 1, 0] - xMesh[0, 0, 0]
+        xMesh /= meshDistance
+        yMesh /= meshDistance
+        zMesh /= meshDistance
+        sphericalPoints /= meshDistance
+        minimumMeshValue = np.min(xMesh)
+        xMesh -= minimumMeshValue
+        yMesh -= minimumMeshValue
+        zMesh -= minimumMeshValue
+        sphericalPoints -= minimumMeshValue
+        sphericalPoints *= 0.98
+        sphericalPoints += 0.01 * sphericalPoints
+
+        generatedNoise = np.zeros((np.size(sphericalPoints, 0), 1))
+
+        basisFunctionDistance = np.zeros((8, 1))
+        basisTemplate = np.array([[0, 0, 0],
+                                  [1, 0, 0],
+                                  [0, 1, 0],
+                                  [0, 0, 1],
+                                  [1, 1, 0],
+                                  [1, 0, 1],
+                                  [0, 1, 1],
+                                  [1, 1, 1],
+                                  ])
+
+        for iPoint, point in enumerate(sphericalPoints):
+            flooredPoint = np.floor(point)
+            pointOffset = point - flooredPoint
+            #pointOffset = 0.5-np.cos(pointOffset*np.pi)/2;
+            pointOffset = 6 * pointOffset ** 5 - 15 * pointOffset ** 4 + 10 * pointOffset ** 3  # standard smooth interpolation.
+            #pointOffset = 6 * pointOffset ** 5 - 15 * pointOffset ** 4 + 10 * pointOffset ** 3
+            #pointOffset = 6 * pointOffset ** 5 - 15 * pointOffset ** 4 + 10 * pointOffset ** 3
+
+            #for i in range(8):
+            #    basisFunctionDistance[i, 0] = np.sqrt((basisTemplate[i, 0] - pointOffset[0]) ** 2
+            #                                          + (basisTemplate[i, 1] - pointOffset[1]) ** 2
+            #                                          + (basisTemplate[i, 2] - pointOffset[2]) ** 2)
+
+            # The indexing needs to be 'ij' in order for the indexing to match with other arrays in the code.
+            minorxMesh, minoryMesh, minorzMesh = np.meshgrid(
+                np.linspace(flooredPoint[0], flooredPoint[0] + 1, 2),
+                np.linspace(flooredPoint[1], flooredPoint[1] + 1, 2),
+                np.linspace(flooredPoint[2], flooredPoint[2] + 1, 2),indexing = 'ij')
+
+            minorxGradient = xGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
+            minoryGradient = yGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
+            minorzGradient = zGradient[minorxMesh.astype(int), minoryMesh.astype(int), minorzMesh.astype(int)]
+
+            xDistanceVector = minorxMesh - point[0]
+            yDistanceVector = minoryMesh - point[1]
+            zDistanceVector = minorzMesh - point[2]
+            # These 4 lines can be used to normalize the distance vectors. This should not be done.
+            #r = np.sqrt(xDistanceVector**2 + yDistanceVector**2 + zDistanceVector**2)
+            #xDistanceVector /= r
+            #yDistanceVector /= r
+            #zDistanceVector /= r
+
+            influenceValues = minorxGradient * xDistanceVector + minoryGradient * yDistanceVector + minorzGradient * zDistanceVector
+            #print(influenceValues)
+
+            # This is proven to work, but it is unsure why.
+            if True:
+                '''
+                # Performs the trilinear interpolation.
+                influenceValues = influenceValues[0, :, :] * (1 - pointOffset[1]) + influenceValues[1, :, :] * pointOffset[1]
+                #print(influenceValues)
+                influenceValues = influenceValues[0, :] * (1 - pointOffset[0]) + influenceValues[1, :] * pointOffset[0]
+                #print(influenceValues)
+                # influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
+                # influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
+                influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
+                '''
+                # Performs the trilinear interpolation.
+                influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
+                influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
+                influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
+
+            else:
+
+                print(point)
+                print(minorxMesh)
+                print(minoryMesh)
+                print(minorzMesh)
+                quit()
+
+
+
+                pointOffset = [0.1, 0.1, 0.1]
+                #print(pointOffset)
+                #print(influenceValues)
+
+                testArray = np.zeros((2, 3, 4))
+                for x in range(2):
+                    for y in range(3):
+                        #testArray[x, y] = influenceValues[x, y, 0] * 0.9 + influenceValues[x, y, 1] * 0.1
+                        for z in range(4):
+                            testArray[x, y, z] = z
+                print('==========================')
+                print(testArray)
+                print('------------------------------')
+                print(testArray[0, :, :])
+                print(testArray[:, 0, :])
+                print(testArray[:, :, 1])
+                quit()
+
+                print(0.9*influenceValues[:, :, 0])
+                print(' ')
+                print(0.1*influenceValues[:, :, 1])
+                print(' ')
+                print(0.9*influenceValues[:, :, 0] + 0.1*influenceValues[:, :, 1])
+                #print(testArray)
+                print('-------------------------')
+                # X layers are combined
+                influenceValues = influenceValues[0, :, :] + pointOffset[0] * (influenceValues[1, :, :] - influenceValues[0, :, :])
+                print(influenceValues)
+                print('-------------------------')
+                influenceValues = influenceValues[:, 0] + pointOffset[0] * (influenceValues[:, 1] - influenceValues[:, 0])
+                print(influenceValues)
+                print('-------------------------')
+                influenceValues = influenceValues[0] + pointOffset[1] * (influenceValues[1] - influenceValues[0])
+                print(influenceValues)
+                quit()
+                #print('--------------------------------------')
+
+                minorGridPoints = np.zeros((8, 3))
+                #print(minorGridPoints)
+                #print(np.reshape(minorxMesh, (8, 1)))
+                #print(np.shape(np.reshape(minorxMesh, (8, 1))))
+                #print(np.shape(minorGridPoints[:, 0]))
+                minorGridPoints[:, 0:1] = np.reshape(minorxMesh, (8, 1))
+                minorGridPoints[:, 1:2] = np.reshape(minoryMesh, (8, 1))
+                minorGridPoints[:, 2:3] = np.reshape(minorzMesh, (8, 1))
+
+                minorGridValues = np.reshape(minorxGradient * xDistanceVector + minoryGradient * yDistanceVector + minorzGradient * zDistanceVector, (8, 1))
+
+                #print(minorGridPoints)
+                #print(type(minorGridPoints))
+                #print(np.shape(minorGridPoints))
+
+                #print(minorGridValues)
+                #print(type(minorGridValues))
+                #print(np.shape(minorGridValues))
+
+
+                #print('===========================================')
+                #intp = interpolate.LinearNDInterpolator(minorGridPoints, minorGridValues[:, 0])
+                #intp = interpolate.NearestNDInterpolator(minorGridPoints, minorGridValues[:, 0])
+                #print(intp(point))
+                #point = flooredPoint + pointOffset
+                #influenceValues = intp(point)
+
+                '''
+                r = np.sqrt(xDistanceVector**2 + yDistanceVector**2 + zDistanceVector**2)
+                rSum = sum(sum(sum(r)))
+                minorGridValues = minorxGradient * xDistanceVector + minoryGradient * yDistanceVector + minorzGradient * zDistanceVector
+                influenceValues = sum(sum(sum(r * minorGridValues / rSum)))
+                '''
+
+
+            # ---------------------------------------------
+            # ---------------------------------------------
+            generatedNoise[iPoint, 0] = influenceValues
+            # generatedNoise[iPoint, 0] = np.sum(influenceValues) * basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
+            # generatedNoise[iPoint, 0] =  basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)]
+            # generatedNoise[iPoint, 0] = 2*np.sum(influenceValues) + np.sum(basisFunctionDistance)
+            # print(basisFunctionDistance[basisFunctionDistance == np.min(basisFunctionDistance)])
+            # ---------------------------------------------
+            # ---------------------------------------------
 
     generatedNoise -= np.min(generatedNoise)
     generatedNoise /= np.max(generatedNoise)
