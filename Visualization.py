@@ -121,3 +121,84 @@ class MayaviWindow(HasTraits):
         mlab.surf(np.zeros([2, 2]), figure = self.updatedScene.mayavi_scene, opacity = 0) # Dummy surface
         mlab.text(0.6, 0.9, 'Eroded', width=0.4)
 
+class VisualizeGlobe():
+    def __init__(self,
+                 vertices,
+                 faces,
+                 radius,
+                 scalars,
+                 projectTopography = True,
+                 projectRadiusSpan = [1, 1.1],
+                 interpolatedTriangleColor = False,
+                 colormap = 'gist_earth'):
+        # ------------------------------------------------------------------------------------------
+        # Creates a triangular mesh object visualizing a globe given the inputs. The surface can be projected onto a sphere
+        # or drawn as an irregular sphere (different radius for different vertices).
+        #
+        # projectTopography: If True will give a sphere with a scalar map drawn on it.
+        # interpolatedTriangleColor: If True will give triangles with varying color thoughout the triangle. The color will
+        #                            be interpolated between the edge scalar values. If False will give triangles with a
+        #                            single color. The color will be the mean of the edge scalar values.
+        # ------------------------------------------------------------------------------------------
+
+        if interpolatedTriangleColor:
+            if projectTopography:
+                mesh = mlab.triangular_mesh(vertices[:, 0] * 0.99,
+                                            vertices[:, 1] * 0.99,
+                                            vertices[:, 2] * 0.99,
+                                            faces,
+                                            scalars = scalars[:, 0],
+                                            colormap=colormap)
+            else:
+                radius *= (projectRadiusSpan[1]-projectRadiusSpan[0])
+                mesh = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius[:, 0]),
+                                            vertices[:, 1] * (projectRadiusSpan[0] + radius[:, 0]),
+                                            vertices[:, 2] * (projectRadiusSpan[0] + radius[:, 0]),
+                                            faces,
+                                            scalars=scalars[:, 0],
+                                            colormap=colormap)
+        else:
+            if projectTopography:
+                mesh = mlab.triangular_mesh(vertices[:, 0] * 0.99,
+                                            vertices[:, 1] * 0.99,
+                                            vertices[:, 2] * 0.99,
+                                            faces,
+                                            representation='wireframe',
+                                            opacity=0,
+                                            colormap=colormap)
+            else:
+                radius *= (projectRadiusSpan[1]-projectRadiusSpan[0])
+                mesh = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius[:, 0]),
+                                            vertices[:, 1] * (projectRadiusSpan[0] + radius[:, 0]),
+                                            vertices[:, 2] * (projectRadiusSpan[0] + radius[:, 0]),
+                                            faces,
+                                            representation='wireframe',
+                                            opacity=0,
+                                            colormap=colormap)
+
+
+            '''
+            #mesh.mlab_source.dataset.point_data.scalars = radius[:, 0]
+            #mesh.mlab_source.dataset.point_data.scalars.name = 'Point data'
+            #mesh.mlab_source.update()
+            #mesh2 = mlab.pipeline.set_active_attribute(mesh, point_scalars='Point data')
+            #mlab.pipeline.surface(mesh2, colormap=colormap)
+
+            # Check the tvtk.polydata documentation. Do this to change the resolution of the triangles (polygons/cells).
+            #print(mesh.mlab_source.dataset)
+            #help(mesh.mlab_source.dataset)
+            '''
+
+            #help(mlab.pipeline.surface)
+            #mlab.pipeline.surface(mesh2, color = (0.5, 0.8, 0.1))
+            #help(mlab.pipeline.set_active_attribute)
+            #help(mesh.mlab_source.dataset.point_data.interpolate_allocate)
+
+
+            faceHeight = np.mean(radius[faces, 0], 1)
+            mesh.mlab_source.dataset.cell_data.scalars = faceHeight
+            mesh.mlab_source.dataset.cell_data.scalars.name = 'Cell data'
+            mesh.mlab_source.update()
+            self.mayaviMeshObject = mlab.pipeline.set_active_attribute(mesh, cell_scalars='Cell data')
+            mlab.pipeline.surface(self.mayaviMeshObject, colormap=colormap)
+

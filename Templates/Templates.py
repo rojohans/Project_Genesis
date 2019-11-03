@@ -34,21 +34,9 @@ def GetIcoSphere(numberOfDivisions):
         print('new world was created')
     return world
 
-class IcoSphere():
-    '''
-    The icosphere is made by dividing an icosahedron.
-    The initial values of the vertices and faces correspond to a regular icosahedron.
-    '''
-
-    from memory_profiler import profile
-    @profile
+class IcoSphereSimple():
     def __init__(self,
                  numberOfDivisions = 0):
-
-
-
-        #def f(self, numberOfDivisions = 0):
-
         # A dictionary used to prevent duplicate vertices.
         self.middle_point_cache = {}
 
@@ -56,41 +44,41 @@ class IcoSphere():
         PHI = (1 + np.sqrt(5)) / 2
         # vertices = [x, y, z]
         self.vertices = [
-                        self._NewVertex(-1, PHI, 0),
-                        self._NewVertex(1, PHI, 0),
-                        self._NewVertex(-1, -PHI, 0),
-                        self._NewVertex(1, -PHI, 0),
-                        self._NewVertex(0, -1, PHI),
-                        self._NewVertex(0, 1, PHI),
-                        self._NewVertex(0, -1, -PHI),
-                        self._NewVertex(0, 1, -PHI),
-                        self._NewVertex(PHI, 0, -1),
-                        self._NewVertex(PHI, 0, 1),
-                        self._NewVertex(-PHI, 0, -1),
-                        self._NewVertex(-PHI, 0, 1),
-                        ]
+            self._NewVertex(-1, PHI, 0),
+            self._NewVertex(1, PHI, 0),
+            self._NewVertex(-1, -PHI, 0),
+            self._NewVertex(1, -PHI, 0),
+            self._NewVertex(0, -1, PHI),
+            self._NewVertex(0, 1, PHI),
+            self._NewVertex(0, -1, -PHI),
+            self._NewVertex(0, 1, -PHI),
+            self._NewVertex(PHI, 0, -1),
+            self._NewVertex(PHI, 0, 1),
+            self._NewVertex(-PHI, 0, -1),
+            self._NewVertex(-PHI, 0, 1),
+        ]
         self.faces = [
-                     [0, 11, 5],
-                     [0, 5, 1],
-                     [0, 1, 7],
-                     [0, 7, 10],
-                     [0, 10, 11],
-                     [1, 5, 9],
-                     [5, 11, 4],
-                     [11, 10, 2],
-                     [10, 7, 6],
-                     [7, 1, 8],
-                     [3, 9, 4],
-                     [3, 4, 2],
-                     [3, 2, 6],
-                     [3, 6, 8],
-                     [3, 8, 9],
-                     [4, 9, 5],
-                     [2, 4, 11],
-                     [6, 2, 10],
-                     [8, 6, 7],
-                     [9, 8, 1],
-                     ]
+            [0, 11, 5],
+            [0, 5, 1],
+            [0, 1, 7],
+            [0, 7, 10],
+            [0, 10, 11],
+            [1, 5, 9],
+            [5, 11, 4],
+            [11, 10, 2],
+            [10, 7, 6],
+            [7, 1, 8],
+            [3, 9, 4],
+            [3, 4, 2],
+            [3, 2, 6],
+            [3, 6, 8],
+            [3, 8, 9],
+            [4, 9, 5],
+            [2, 4, 11],
+            [6, 2, 10],
+            [8, 6, 7],
+            [9, 8, 1],
+        ]
 
         for i in range(numberOfDivisions):
             faces_subdiv = []
@@ -108,19 +96,7 @@ class IcoSphere():
         self.vertices = np.asarray(self.vertices)
         self.faces = np.asarray(self.faces)
         self.numberOfvertices = np.size(self.vertices, axis=0)
-
-        self.shortestDistance = np.linalg.norm(self.vertices[self.faces[0][0]] - self.vertices[self.faces[0][1]])
-        self.neighbours = Neighbours(self.vertices,
-                                     self.shortestDistance,
-                                     maxNeighbourDistance = 10)
-
-        #from line_profiler import LineProfiler
-        #lp = LineProfiler()
-        #lp_wrapper = lp(f)
-        #lp_wrapper(5)
-        #lp.print_stats()
-        #quit()
-        #f(numberOfDivisions)
+        self.radius = np.ones((self.numberOfvertices, 1))
 
     def _NewVertex(self, x, y, z):
         '''
@@ -159,6 +135,23 @@ class IcoSphere():
 
         return index
 
+
+class IcoSphere(IcoSphereSimple):
+    '''
+    The icosphere is made by dividing an icosahedron.
+    The initial values of the vertices and faces correspond to a regular icosahedron.
+    '''
+
+    #from memory_profiler import profile
+    #@profile
+    def __init__(self,
+                 numberOfDivisions = 0):
+        super().__init__(numberOfDivisions = numberOfDivisions)
+
+        self.shortestDistance = np.linalg.norm(self.vertices[self.faces[0][0]] - self.vertices[self.faces[0][1]])
+        self.neighbours = Neighbours(self.vertices,
+                                     self.shortestDistance,
+                                     maxNeighbourDistance = 10)
 
 class Neighbours:
     def __init__(self,
@@ -240,6 +233,8 @@ class Neighbours:
                 distanceListTemp.append(distances)
             self.IDList.append(IDListTemp)
             self.distanceList.append(distanceListTemp)
+
+
 
 
 

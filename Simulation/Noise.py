@@ -207,7 +207,7 @@ def FractalNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsTo
 
 
 
-def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToSkip = 1, amplitudeReduction = 2):
+def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToSkip = 1, amplitudeScaling = 2):
     if False:
         # Indicates the location of the gradient vectors.
         xMesh, yMesh, zMesh = np.meshgrid(np.linspace(-1, 1, gridSize+1),
@@ -330,16 +330,18 @@ def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToS
         yGradient[-1, :, :] = yGradient[0, :, :]
         zGradient[-1, :, :] = zGradient[0, :, :]
 
+        noiseAmplitude = 1
+
         # The sphereRadius is used to change the radius of the sphere such that the sphere lies within the cube of
         # gradient vectors.
         sphereRadius = np.sum(np.sqrt(np.sum(sphericalPoints**2, 1)))/np.size(sphericalPoints, 0)
-        while gridSize > 1:
-            #print(np.shape(xGradient[0, :, :]))
+        while gridSize > 2**numberOfInitialIterationsToSkip:
             print('gridsize = ', gridSize)
 
             sphericalPoints /= sphereRadius
-            sphereRadius = 0.95*(gridSize/2-0.5)
+            sphereRadius = 0.9*(gridSize/2-0.5)
             sphericalPoints *= sphereRadius
+            sphericalPoints += 0.1
 
             # Used to store the noise for a single resolution layer.
             singleLayerNoise = np.zeros((np.size(sphericalPoints, 0), 1))
@@ -376,15 +378,18 @@ def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToS
 
                 singleLayerNoise[iPoint, 0] = influenceValues
 
-            multiLayerNoise += singleLayerNoise / gridSize
-
-
+            multiLayerNoise += singleLayerNoise * noiseAmplitude
+            noiseAmplitude *= amplitudeScaling
 
             # Every second gradient is discarded, this changes the resolution of the noise.
             gridSize /= 2
             xGradient = xGradient[0::2, 0::2, 0::2]
             yGradient = yGradient[0::2, 0::2, 0::2]
             zGradient = zGradient[0::2, 0::2, 0::2]
+
+        # The noise is normalized before being returned
+        multiLayerNoise -= np.min(multiLayerNoise)
+        multiLayerNoise /= np.max(multiLayerNoise)
         return multiLayerNoise
         quit()
         # ==============================================================================================================

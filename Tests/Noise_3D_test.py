@@ -33,8 +33,9 @@ import time
 tic = time.clock()
 #world = Simulation.Templates.IcoSphere(6)
 
-world = Templates.Templates.GetIcoSphere(6)
-
+#world = Templates.Templates.GetIcoSphere(6)
+# IcoSphereSimple creates an icosphere without the neighbour lists.
+world = Templates.Templates.IcoSphereSimple(6)
 
 
 
@@ -97,25 +98,31 @@ else:
     #                                                            3,
     #                                                            1.5)
     tic = time.clock()
-    interpolatedRadius = Simulation.Noise.PerlinNoiseSpherical(16,
-                                                               world.vertices.copy(),
-                                                               numberOfInitialIterationsToSkip = 2,
-                                                               amplitudeReduction = 1.5)
+    world.radius = Simulation.Noise.PerlinNoiseSpherical(8,
+                                                         world.vertices.copy(),
+                                                         numberOfInitialIterationsToSkip = 2,
+                                                         amplitudeScaling = 1.5)
     toc = time.clock()
     print('Noise generation time: ', toc - tic)
-interpolatedRadius -= np.min(interpolatedRadius)
-interpolatedRadius /= np.max(interpolatedRadius)
 
-'''
-from line_profiler import LineProfiler
-lp = LineProfiler()
-lp_wrapper = lp(Simulation.Noise.PerlinNoiseSpherical)
-lp_wrapper(4,
-            vertsArray.copy(),
-            numberOfInitialIterationsToSkip = 2,
-            amplitudeReduction = 1.5)
-lp.print_stats()
-'''
+
+import Visualization
+# Visualizes the globe, as projected or not.
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = world.radius.copy(),
+                             projectTopography = False,
+                             projectRadiusSpan = [1, 1.03],
+                             interpolatedTriangleColor = False,
+                             colormap = 'gist_earth')
+
+#Visualization.VisualizeFlow()
+
+print('Visualization done')
+
+mlab.show()
+quit()
 
 heightSurface = mlab.triangular_mesh(
     world.vertices[:, 0] * 0.99,
@@ -123,7 +130,7 @@ heightSurface = mlab.triangular_mesh(
     world.vertices[:, 2] * 0.99,
     world.faces,
     scalars=interpolatedRadius[:, 0],
-    colormap='gist_earth')
+    colormap='gist_earth')#terrain
 #'gist_heat'
 #'gist_earth'
 mlab.show()
@@ -571,8 +578,11 @@ fig1.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
 #mlab.points3d(hotSpotCoordinates[:, 0]*1.5, hotSpotCoordinates[:, 1]*1.5, hotSpotCoordinates[:, 2]*1.5,
 #              color=(1, 1, 1), scale_factor = 0.1)
 
+# ========================================================================
 # ------------------------------------------------------------------------
+# ========================================================================
 # ------------------------------------------------------------------------
+# ========================================================================
 if faceColorSmoothing is False:
     # When true the colour for each triangle will be varied throughout the triangle. Interpolation is done based on
     # the vertex values. When the statement is false each triangle will have a single colour. The colour is based on
