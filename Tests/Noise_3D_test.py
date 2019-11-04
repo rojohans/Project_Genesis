@@ -106,6 +106,28 @@ else:
     print('Noise generation time: ', toc - tic)
 
 
+
+(xFlow, yFlow, zFlow) = Simulation.Noise.PerlinNoise3DFlow(8,
+                                                           world.vertices.copy(),
+                                                           1,
+                                                           1.5,
+                                                           projectOnSphere =False,
+                                                           normalizedVectors = False)
+
+# Project flow vectors onto sphere.
+r = np.sqrt((xFlow + world.vertices[:, 0]) ** 2
+            + (yFlow + world.vertices[:, 1]) ** 2
+            + (zFlow + world.vertices[:, 2]) ** 2)
+xFlow = (xFlow + world.vertices[:, 0]) / r - world.vertices[:, 0]
+yFlow = (yFlow + world.vertices[:, 1]) / r - world.vertices[:, 1]
+zFlow = (zFlow + world.vertices[:, 2]) / r - world.vertices[:, 2]
+# Normalizes flow vectors.
+r = np.sqrt(xFlow ** 2 + yFlow ** 2 + zFlow ** 2)
+xFlow /= r
+yFlow /= r
+zFlow /= r
+
+
 import Visualization
 # Visualizes the globe, as projected or not.
 Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
@@ -117,53 +139,17 @@ Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              interpolatedTriangleColor = False,
                              colormap = 'gist_earth')
 
-#Visualization.VisualizeFlow()
-
-
-
-vertexXFlow = 2*np.sqrt(1/3)*Simulation.Noise.PerlinNoiseSpherical(8,
-                                                     world.vertices.copy(),
-                                                     numberOfInitialIterationsToSkip=1,
-                                                     amplitudeScaling=1.5)-np.sqrt(1/3)
-vertexYFlow = 2*np.sqrt(1/3)*Simulation.Noise.PerlinNoiseSpherical(8,
-                                                     world.vertices.copy(),
-                                                     numberOfInitialIterationsToSkip=1,
-                                                     amplitudeScaling=1.5)-np.sqrt(1/3)
-vertexZFlow = 2*np.sqrt(1/3)*Simulation.Noise.PerlinNoiseSpherical(8,
-                                                     world.vertices.copy(),
-                                                     numberOfInitialIterationsToSkip=1,
-                                                     amplitudeScaling=1.5)-np.sqrt(1/3)
-
-
-
-
-
-# Project flow vectors onto sphere.
-r = np.sqrt((vertexXFlow[:, 0]+world.vertices[:, 0])**2
-          + (vertexYFlow[:, 0]+world.vertices[:, 1])**2
-          + (vertexZFlow[:, 0]+world.vertices[:, 2])**2)
-
-vertexXFlow = (vertexXFlow[:, 0]+world.vertices[:, 0])/r - world.vertices[:, 0]
-vertexYFlow = (vertexYFlow[:, 0]+world.vertices[:, 1])/r - world.vertices[:, 1]
-vertexZFlow = (vertexZFlow[:, 0]+world.vertices[:, 2])/r - world.vertices[:, 2]
-
-# Normalizes flow vectors.
-r = np.sqrt(vertexXFlow**2 + vertexYFlow**2 + vertexZFlow**2)
-vertexXFlow /= r
-vertexYFlow /= r
-vertexZFlow /= r
-
-# ========================================================================================
-# The flowvectors has not been normalized correctly, this needs to be done.
-# ========================================================================================
-
 Visualization.VisualizeFlow(world.vertices,
-                            vertexXFlow,
-                            vertexYFlow,
-                            vertexZFlow,
+                            xFlow,
+                            yFlow,
+                            zFlow,
                             world.faces,
-                            newFigure = True)
+                            newFigure = True,
+                            sizeFactor = 0.03)
 
+print('============================')
+print('||>- Visualization done -<||')
+print('============================')
 mlab.show()
 quit()
 

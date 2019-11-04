@@ -200,7 +200,7 @@ class VisualizeGlobe():
             #help(mesh.mlab_source.dataset.point_data.interpolate_allocate)
 
 
-            faceHeight = np.mean(radius[faces, 0], 1)
+            faceHeight = np.mean(radius[faces], 1)
             mesh.mlab_source.dataset.cell_data.scalars = faceHeight
             mesh.mlab_source.dataset.cell_data.scalars.name = 'Cell data'
             mesh.mlab_source.update()
@@ -218,12 +218,12 @@ class VisualizeFlow():
                  sizeFactor = 0.02,
                  newFigure = True):
         # ------------------------------------------------------------------------------------------
-        # Creates a quiver object visualizing a 3d flow. The
+        # Creates a quiver object visualizing a 3d flow. A black inner sphere can be used in order to make the flow
+        # vectors more distinct.
         #
-        # projectTopography: If True will give a sphere with a scalar map drawn on it.
-        # interpolatedTriangleColor: If True will give triangles with varying color thoughout the triangle. The color will
-        #                            be interpolated between the edge scalar values. If False will give triangles with a
-        #                            single color. The color will be the mean of the edge scalar values.
+        # backgroundFaces: An optional input. A list of triangles which span an entire sphere, the faces must correspond
+        #                  to the vertices. If this input is given a black sphere will be drawn within the flow
+        #                  vectors, this improves visibility.
         # ------------------------------------------------------------------------------------------
         if newFigure:
             self.figure = mlab.figure()
@@ -236,6 +236,8 @@ class VisualizeFlow():
                                                          vertices[:, 2] * 0.95,
                                                          backgroundFaces,
                                                          color = (0, 0, 0))
+        print(np.shape(xFlow))
+        #print(np.shape(xFlow[:, 0]))
 
         self.mayaviFlowObject = mlab.quiver3d(vertices[:, 0],
                                               vertices[:, 1],

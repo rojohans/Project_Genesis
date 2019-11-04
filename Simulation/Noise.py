@@ -208,6 +208,102 @@ def FractalNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsTo
 
 
 def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToSkip = 1, amplitudeScaling = 2):
+    multiLayerNoise = np.zeros((np.size(sphericalPoints, 0),1))
+
+    xGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+    yGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+    zGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
+    gradientMagnitude = np.sqrt(xGradient ** 2 + yGradient ** 2 + zGradient ** 2)
+    xGradient /= gradientMagnitude
+    yGradient /= gradientMagnitude
+    zGradient /= gradientMagnitude
+    xGradient[:, :, -1] = xGradient[:, :, 0]
+    yGradient[:, :, -1] = yGradient[:, :, 0]
+    zGradient[:, :, -1] = zGradient[:, :, 0]
+    xGradient[:, -1, :] = xGradient[:, 0, :]
+    yGradient[:, -1, :] = yGradient[:, 0, :]
+    zGradient[:, -1, :] = zGradient[:, 0, :]
+    xGradient[-1, :, :] = xGradient[0, :, :]
+    yGradient[-1, :, :] = yGradient[0, :, :]
+    zGradient[-1, :, :] = zGradient[0, :, :]
+
+    noiseAmplitude = 1
+
+    # The sphereRadius is used to change the radius of the sphere such that the sphere lies within the cube of
+    # gradient vectors.
+    sphereRadius = np.sum(np.sqrt(np.sum(sphericalPoints ** 2, 1))) / np.size(sphericalPoints, 0)
+    while gridSize > 2 ** numberOfInitialIterationsToSkip:
+        print('gridsize = ', gridSize)
+
+        sphericalPoints /= sphereRadius
+        sphereRadius = 0.9 * (gridSize / 2 - 0.5)
+        sphericalPoints *= sphereRadius
+        sphericalPoints += 0.1
+
+        # Used to store the noise for a single resolution layer.
+        singleLayerNoise = np.zeros((np.size(sphericalPoints, 0), 1))
+        for iPoint, point in enumerate(sphericalPoints):
+            flooredPoint = np.floor(point)
+            pointOffset = point - flooredPoint
+            # pointOffset = 0.5-np.cos(pointOffset*np.pi)/2;
+            pointOffset = 6 * pointOffset ** 5 - 15 * pointOffset ** 4 + 10 * pointOffset ** 3  # standard smooth interpolation.
+
+            # The indexing needs to be 'ij' in order for the indexing to match with other arrays in the code.
+            # By default it is 'xy'
+            adjacentGridx, adjacentGridy, adjacentGridz = np.meshgrid(
+                np.linspace(flooredPoint[0], flooredPoint[0] + 1, 2),
+                np.linspace(flooredPoint[1], flooredPoint[1] + 1, 2),
+                np.linspace(flooredPoint[2], flooredPoint[2] + 1, 2), indexing='ij')
+
+            adjacentGradientx = xGradient[
+                adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
+            adjacentGradienty = yGradient[
+                adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
+            adjacentGradientz = zGradient[
+                adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
+
+            distanceVectorx = adjacentGridx - point[0]
+            distanceVectory = adjacentGridy - point[1]
+            distanceVectorz = adjacentGridz - point[2]
+
+            # These are the noise values at each grid point. To create the final noise one has to inperpolate between these.
+            influenceValues = adjacentGradientx * distanceVectorx + \
+                              adjacentGradienty * distanceVectory + \
+                              adjacentGradientz * distanceVectorz
+
+            # Performs the trilinear interpolation.
+            influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[
+                0]
+            influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
+            influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
+
+            singleLayerNoise[iPoint, 0] = influenceValues
+
+        multiLayerNoise += singleLayerNoise * noiseAmplitude
+        noiseAmplitude *= amplitudeScaling
+
+        # Every second gradient is discarded, this changes the resolution of the noise.
+        gridSize /= 2
+        xGradient = xGradient[0::2, 0::2, 0::2]
+        yGradient = yGradient[0::2, 0::2, 0::2]
+        zGradient = zGradient[0::2, 0::2, 0::2]
+
+    # The noise is normalized before being returned
+    multiLayerNoise -= np.min(multiLayerNoise)
+    multiLayerNoise /= np.max(multiLayerNoise)
+
+    #
+
+
+
+
+
+    # print(np.shape(multiLayerNoise))
+    multiLayerNoise = multiLayerNoise[:, 0]
+
+    return multiLayerNoise
+
+    '''
     if False:
         # Indicates the location of the gradient vectors.
         xMesh, yMesh, zMesh = np.meshgrid(np.linspace(-1, 1, gridSize+1),
@@ -311,86 +407,8 @@ def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToS
             # ---------------------------------------------
             # ---------------------------------------------
     else:
-        multiLayerNoise = np.zeros((np.size(sphericalPoints, 0), 1))
 
-        xGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
-        yGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
-        zGradient = 2 * np.random.rand(gridSize + 1, gridSize + 1, gridSize + 1) - 1
-        gradientMagnitude = np.sqrt(xGradient ** 2 + yGradient ** 2 + zGradient ** 2)
-        xGradient /= gradientMagnitude
-        yGradient /= gradientMagnitude
-        zGradient /= gradientMagnitude
-        xGradient[:, :, -1] = xGradient[:, :, 0]
-        yGradient[:, :, -1] = yGradient[:, :, 0]
-        zGradient[:, :, -1] = zGradient[:, :, 0]
-        xGradient[:, -1, :] = xGradient[:, 0, :]
-        yGradient[:, -1, :] = yGradient[:, 0, :]
-        zGradient[:, -1, :] = zGradient[:, 0, :]
-        xGradient[-1, :, :] = xGradient[0, :, :]
-        yGradient[-1, :, :] = yGradient[0, :, :]
-        zGradient[-1, :, :] = zGradient[0, :, :]
-
-        noiseAmplitude = 1
-
-        # The sphereRadius is used to change the radius of the sphere such that the sphere lies within the cube of
-        # gradient vectors.
-        sphereRadius = np.sum(np.sqrt(np.sum(sphericalPoints**2, 1)))/np.size(sphericalPoints, 0)
-        while gridSize > 2**numberOfInitialIterationsToSkip:
-            print('gridsize = ', gridSize)
-
-            sphericalPoints /= sphereRadius
-            sphereRadius = 0.9*(gridSize/2-0.5)
-            sphericalPoints *= sphereRadius
-            sphericalPoints += 0.1
-
-            # Used to store the noise for a single resolution layer.
-            singleLayerNoise = np.zeros((np.size(sphericalPoints, 0), 1))
-            for iPoint, point in enumerate(sphericalPoints):
-                flooredPoint = np.floor(point)
-                pointOffset = point - flooredPoint
-                # pointOffset = 0.5-np.cos(pointOffset*np.pi)/2;
-                pointOffset = 6 * pointOffset ** 5 - 15 * pointOffset ** 4 + 10 * pointOffset ** 3  # standard smooth interpolation.
-
-                # The indexing needs to be 'ij' in order for the indexing to match with other arrays in the code.
-                # By default it is 'xy'
-                adjacentGridx, adjacentGridy, adjacentGridz = np.meshgrid(
-                    np.linspace(flooredPoint[0], flooredPoint[0] + 1, 2),
-                    np.linspace(flooredPoint[1], flooredPoint[1] + 1, 2),
-                    np.linspace(flooredPoint[2], flooredPoint[2] + 1, 2), indexing='ij')
-
-                adjacentGradientx = xGradient[adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
-                adjacentGradienty = yGradient[adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
-                adjacentGradientz = zGradient[adjacentGridx.astype(int), adjacentGridy.astype(int), adjacentGridz.astype(int)]
-
-                distanceVectorx = adjacentGridx - point[0]
-                distanceVectory = adjacentGridy - point[1]
-                distanceVectorz = adjacentGridz - point[2]
-
-                # These are the noise values at each grid point. To create the final noise one has to inperpolate between these.
-                influenceValues = adjacentGradientx * distanceVectorx +\
-                                  adjacentGradienty * distanceVectory +\
-                                  adjacentGradientz * distanceVectorz
-
-                # Performs the trilinear interpolation.
-                influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
-                influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
-                influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
-
-                singleLayerNoise[iPoint, 0] = influenceValues
-
-            multiLayerNoise += singleLayerNoise * noiseAmplitude
-            noiseAmplitude *= amplitudeScaling
-
-            # Every second gradient is discarded, this changes the resolution of the noise.
-            gridSize /= 2
-            xGradient = xGradient[0::2, 0::2, 0::2]
-            yGradient = yGradient[0::2, 0::2, 0::2]
-            zGradient = zGradient[0::2, 0::2, 0::2]
-
-        # The noise is normalized before being returned
-        multiLayerNoise -= np.min(multiLayerNoise)
-        multiLayerNoise /= np.max(multiLayerNoise)
-        return multiLayerNoise
+        
         quit()
         # ==============================================================================================================
         # ==============================================================================================================
@@ -489,16 +507,16 @@ def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToS
 
             # This is proven to work, but it is unsure why.
             if True:
-                '''
+                
                 # Performs the trilinear interpolation.
-                influenceValues = influenceValues[0, :, :] * (1 - pointOffset[1]) + influenceValues[1, :, :] * pointOffset[1]
+                #influenceValues = influenceValues[0, :, :] * (1 - pointOffset[1]) + influenceValues[1, :, :] * pointOffset[1]
                 #print(influenceValues)
-                influenceValues = influenceValues[0, :] * (1 - pointOffset[0]) + influenceValues[1, :] * pointOffset[0]
-                #print(influenceValues)
+                #influenceValues = influenceValues[0, :] * (1 - pointOffset[0]) + influenceValues[1, :] * pointOffset[0]
+                ##print(influenceValues)
                 # influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
                 # influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
-                influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
-                '''
+                #influenceValues = influenceValues[0] * (1 - pointOffset[2]) + influenceValues[1] * pointOffset[2]
+                
                 # Performs the trilinear interpolation.
                 influenceValues = influenceValues[0, :, :] * (1 - pointOffset[0]) + influenceValues[1, :, :] * pointOffset[0]
                 influenceValues = influenceValues[0, :] * (1 - pointOffset[1]) + influenceValues[1, :] * pointOffset[1]
@@ -578,12 +596,12 @@ def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToS
                 #point = flooredPoint + pointOffset
                 #influenceValues = intp(point)
 
-                '''
-                r = np.sqrt(xDistanceVector**2 + yDistanceVector**2 + zDistanceVector**2)
-                rSum = sum(sum(sum(r)))
-                minorGridValues = minorxGradient * xDistanceVector + minoryGradient * yDistanceVector + minorzGradient * zDistanceVector
-                influenceValues = sum(sum(sum(r * minorGridValues / rSum)))
-                '''
+                
+                #r = np.sqrt(xDistanceVector**2 + yDistanceVector**2 + zDistanceVector**2)
+                #rSum = sum(sum(sum(r)))
+                #minorGridValues = minorxGradient * xDistanceVector + minoryGradient * yDistanceVector + minorzGradient * zDistanceVector
+                #influenceValues = sum(sum(sum(r * minorGridValues / rSum)))
+                
 
 
             # ---------------------------------------------
@@ -600,3 +618,46 @@ def PerlinNoiseSpherical(gridSize, sphericalPoints, numberOfInitialIterationsToS
     generatedNoise /= np.max(generatedNoise)
 
     return generatedNoise
+    '''
+
+
+def PerlinNoise3DFlow(gridSize,
+                      vertices,
+                      numberOfInitialIterationsToSkip = 1,
+                      amplitudeScaling = 1.5,
+                      projectOnSphere = False,
+                      normalizedVectors = False):
+    xFlow = 2 * np.sqrt(1 / 3) * PerlinNoiseSpherical(gridSize,
+                                                      vertices,
+                                                      numberOfInitialIterationsToSkip = numberOfInitialIterationsToSkip,
+                                                      amplitudeScaling = amplitudeScaling) - np.sqrt(1 / 3)
+    yFlow = 2 * np.sqrt(1 / 3) * PerlinNoiseSpherical(gridSize,
+                                                      vertices,
+                                                      numberOfInitialIterationsToSkip = numberOfInitialIterationsToSkip,
+                                                      amplitudeScaling = amplitudeScaling) - np.sqrt(1 / 3)
+    zFlow = 2 * np.sqrt(1 / 3) * PerlinNoiseSpherical(gridSize,
+                                                      vertices,
+                                                      numberOfInitialIterationsToSkip = numberOfInitialIterationsToSkip,
+                                                      amplitudeScaling = amplitudeScaling) - np.sqrt(1 / 3)
+
+    if projectOnSphere:
+        # Project flow vectors onto sphere.
+        r = np.sqrt((xFlow + vertices[:, 0]) ** 2
+                    + (yFlow + vertices[:, 1]) ** 2
+                    + (zFlow + vertices[:, 2]) ** 2)
+        xFlow = (xFlow + vertices[:, 0]) / r - vertices[:, 0]
+        yFlow = (yFlow + vertices[:, 1]) / r - vertices[:, 1]
+        zFlow = (zFlow + vertices[:, 2]) / r - vertices[:, 2]
+    if normalizedVectors:
+        # Normalizes flow vectors.
+        r = np.sqrt(xFlow ** 2 + yFlow ** 2 + zFlow ** 2)
+        xFlow /= r
+        yFlow /= r
+        zFlow /= r
+
+    print(np.shape(xFlow))
+    #xFlow = xFlow[:, 0]
+    #yFlow = yFlow[:, 0]
+    #zFlow = zFlow[:, 0]
+
+    return xFlow, yFlow, zFlow
