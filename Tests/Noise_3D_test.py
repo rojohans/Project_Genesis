@@ -112,12 +112,87 @@ Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              faces = world.faces.copy(),
                              radius = world.radius.copy(),
                              scalars = world.radius.copy(),
-                             projectTopography = False,
+                             projectTopography = True,
                              projectRadiusSpan = [1, 1.03],
                              interpolatedTriangleColor = False,
                              colormap = 'gist_earth')
 
 #Visualization.VisualizeFlow()
+
+
+
+vertexXFlow = 2*np.sqrt(1/3)*Simulation.Noise.PerlinNoiseSpherical(8,
+                                                     world.vertices.copy(),
+                                                     numberOfInitialIterationsToSkip=1,
+                                                     amplitudeScaling=1.5)-np.sqrt(1/3)
+vertexYFlow = 2*np.sqrt(1/3)*Simulation.Noise.PerlinNoiseSpherical(8,
+                                                     world.vertices.copy(),
+                                                     numberOfInitialIterationsToSkip=1,
+                                                     amplitudeScaling=1.5)-np.sqrt(1/3)
+vertexZFlow = 2*np.sqrt(1/3)*Simulation.Noise.PerlinNoiseSpherical(8,
+                                                     world.vertices.copy(),
+                                                     numberOfInitialIterationsToSkip=1,
+                                                     amplitudeScaling=1.5)-np.sqrt(1/3)
+
+
+
+
+
+# Project flow vectors onto sphere.
+r = np.sqrt((vertexXFlow[:, 0]+world.vertices[:, 0])**2
+          + (vertexYFlow[:, 0]+world.vertices[:, 1])**2
+          + (vertexZFlow[:, 0]+world.vertices[:, 2])**2)
+
+vertexXFlow = (vertexXFlow[:, 0]+world.vertices[:, 0])/r - world.vertices[:, 0]
+vertexYFlow = (vertexYFlow[:, 0]+world.vertices[:, 1])/r - world.vertices[:, 1]
+vertexZFlow = (vertexZFlow[:, 0]+world.vertices[:, 2])/r - world.vertices[:, 2]
+
+# Normalizes flow vectors.
+r = np.sqrt(vertexXFlow**2 + vertexYFlow**2 + vertexZFlow**2)
+vertexXFlow /= r
+vertexYFlow /= r
+vertexZFlow /= r
+
+# ========================================================================================
+# The flowvectors has not been normalized correctly, this needs to be done.
+# ========================================================================================
+
+Visualization.VisualizeFlow(world.vertices,
+                            vertexXFlow,
+                            vertexYFlow,
+                            vertexZFlow,
+                            world.faces,
+                            newFigure = True)
+
+mlab.show()
+quit()
+
+fig0 = mlab.figure()
+fig0.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+
+'''
+quiverObject = mlab.quiver3d(vertsArray[:, 0],
+                             vertsArray[:, 1],
+                             vertsArray[:, 2],
+                             vertexXFlow * (0.015 * (0.5 + 1 * np.abs(vertexXFlow))),
+                             vertexYFlow * (0.015 * (0.5 + 1 * np.abs(vertexYFlow))),
+                             vertexZFlow * (0.015 * (0.5 + 1 * np.abs(vertexZFlow))),
+                             resolution=3,
+                             scale_factor=1,
+                             color=(1, 0, 0),
+                             mode='cone')  # 'arrow'
+'''
+quiverObject = mlab.quiver3d(vertsArray[:, 0],
+                             vertsArray[:, 1],
+                             vertsArray[:, 2],
+                             vertexXFlow,
+                             vertexYFlow,
+                             vertexZFlow,
+                             resolution=3,
+                             scale_factor=0.01,
+                             color=(1, 0, 0),
+                             mode='cone')  # 'arrow'
+#quiverObject.glyph.color_mode = 'color_by_scalar'  # Makes the cones coloured based on their scalar value.
 
 print('Visualization done')
 

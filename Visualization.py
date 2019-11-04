@@ -130,7 +130,8 @@ class VisualizeGlobe():
                  projectTopography = True,
                  projectRadiusSpan = [1, 1.1],
                  interpolatedTriangleColor = False,
-                 colormap = 'gist_earth'):
+                 colormap = 'gist_earth',
+                 newFigure = True):
         # ------------------------------------------------------------------------------------------
         # Creates a triangular mesh object visualizing a globe given the inputs. The surface can be projected onto a sphere
         # or drawn as an irregular sphere (different radius for different vertices).
@@ -140,6 +141,10 @@ class VisualizeGlobe():
         #                            be interpolated between the edge scalar values. If False will give triangles with a
         #                            single color. The color will be the mean of the edge scalar values.
         # ------------------------------------------------------------------------------------------
+
+        if newFigure:
+            self.figure = mlab.figure()
+            self.figure.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
 
         if interpolatedTriangleColor:
             if projectTopography:
@@ -202,3 +207,43 @@ class VisualizeGlobe():
             self.mayaviMeshObject = mlab.pipeline.set_active_attribute(mesh, cell_scalars='Cell data')
             mlab.pipeline.surface(self.mayaviMeshObject, colormap=colormap)
 
+class VisualizeFlow():
+    def __init__(self,
+                 vertices,
+                 xFlow,
+                 yFlow,
+                 zFlow,
+                 backgroundFaces = None,
+                 arrowColor = (1, 0, 0),
+                 sizeFactor = 0.02,
+                 newFigure = True):
+        # ------------------------------------------------------------------------------------------
+        # Creates a quiver object visualizing a 3d flow. The
+        #
+        # projectTopography: If True will give a sphere with a scalar map drawn on it.
+        # interpolatedTriangleColor: If True will give triangles with varying color thoughout the triangle. The color will
+        #                            be interpolated between the edge scalar values. If False will give triangles with a
+        #                            single color. The color will be the mean of the edge scalar values.
+        # ------------------------------------------------------------------------------------------
+        if newFigure:
+            self.figure = mlab.figure()
+            self.figure.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+
+        # Creates a black sphere "within" the flow arrows, this make the arrows more visible.
+        if backgroundFaces is not None:
+            self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * 0.95,
+                                                         vertices[:, 1] * 0.95,
+                                                         vertices[:, 2] * 0.95,
+                                                         backgroundFaces,
+                                                         color = (0, 0, 0))
+
+        self.mayaviFlowObject = mlab.quiver3d(vertices[:, 0],
+                                              vertices[:, 1],
+                                              vertices[:, 2],
+                                              xFlow,
+                                              yFlow,
+                                              zFlow,
+                                              resolution=3,
+                                              scale_factor=sizeFactor,
+                                              color=arrowColor,
+                                              mode='arrow')#arrow #cone
