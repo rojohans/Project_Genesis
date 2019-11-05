@@ -99,22 +99,169 @@ else:
     #                                                            vertsArray.copy(),
     #                                                            3,
     #                                                            1.5)
-    tic = time.clock()
-    world.radius = Simulation.Noise.PerlinNoiseSpherical(8,
-                                                         world.vertices.copy(),
-                                                         numberOfInitialIterationsToSkip = 2,
-                                                         amplitudeScaling = 1.5)
-    toc = time.clock()
-    print('Noise generation time: ', toc - tic)
+
+    #world.radius = Simulation.Noise.PerlinNoiseSpherical(8,
+    #                                                     world.vertices.copy(),
+    #                                                     numberOfInitialIterationsToSkip = 2,
+    #                                                     amplitudeScaling = 1.5)
+    pass
 
 
+#tic = time.clock()
+#world.radius = Simulation.Noise.PerlinNoiseSpherical(256,
+#                                                     world.vertices.copy(),
+#                                                     numberOfInitialIterationsToSkip = 2,
+#                                                     amplitudeScaling = 1.5)
+'''
+toc = time.clock()
+print('Noise generation time: ', toc - tic)
 
-xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(4,
+
+# Visualizes the globe, as projected or not.
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = world.radius.copy(),
+                             projectTopography = False,
+                             projectRadiusSpan = [1, 1.1],
+                             interpolatedTriangleColor = False,
+                             colormap = 'gist_earth',
+                             randomColormap = False)
+# Visualizes the globe, as projected or not.
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = world.radius.copy(),
+                             projectTopography = True,
+                             projectRadiusSpan = [1, 1.1],
+                             interpolatedTriangleColor = False,
+                             colormap = 'gist_earth',
+                             randomColormap = False)
+print('done')
+mlab.show()
+quit()
+'''
+
+xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(64,
                                                          world.vertices.copy(),
                                                          1,
-                                                         1.5,
+                                                         amplitudeScaling = 3,
                                                          projectOnSphere = True,
                                                          normalizedVectors = True)
+Visualization.VisualizeFlow(world.vertices,
+                            xFlow,
+                            yFlow,
+                            zFlow,
+                            world.faces,
+                            newFigure = True,
+                            sizeFactor = 0.03)
+xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(64,
+                                                         world.vertices.copy(),
+                                                         1,
+                                                         amplitudeScaling = 1.2,
+                                                         projectOnSphere = True,
+                                                         normalizedVectors = True)
+
+# Kolla upp hur tektoniska plattor  har varierat över tid.
+
+Visualization.VisualizeFlow(world.vertices,
+                            xFlow,
+                            yFlow,
+                            zFlow,
+                            world.faces,
+                            newFigure = True,
+                            sizeFactor = 0.03)
+print('done')
+mlab.show()
+quit()
+
+
+numberOfPlatesTotal = 200
+numberOfPlatesEachIteration = 200
+plateID = -1*np.ones((world.numberOfvertices, 1))
+rLimit = 0.4
+stepLimit = 2000
+
+plateIndexLocal = np.zeros((world.numberOfvertices, 1))
+plateList = []#[[] for i in range(numberOfPlatesTotal)]
+
+for iRun in range(int(numberOfPlatesTotal/numberOfPlatesEachIteration)):
+    #print(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
+    #            numberOfPlatesEachIteration))
+    plateListLocal = [[] for i in range(numberOfPlatesEachIteration)]
+    #for iPlate in np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
+    #            numberOfPlatesEachIteration):
+    for iPlate in range(numberOfPlatesEachIteration):
+        initialPoint = [np.random.randint(0, world.numberOfvertices)]
+        while plateID[initialPoint] >= 0:
+            initialPoint = np.random.randint(0, world.numberOfvertices)
+        plateListLocal[int(iPlate)] = initialPoint
+        #print(iPlate)
+        #print(int(iPlate))
+    #print(plateListLocal)
+    for iStep in range(stepLimit):
+        #for iPlate, plate in enumerate(plateList):
+        for iPlate, iPlateLocal, plate in zip(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
+                numberOfPlatesEachIteration), range(numberOfPlatesEachIteration), plateListLocal):
+                if int(plateIndexLocal[int(iPlate)]) < np.size(plate):
+                    #print(iPlate)
+                    #print(int(iPlate))
+                    #print(plateIndexLocal[int(iPlate)])
+                    #print(int(plateIndexLocal[int(iPlate)]))
+                    #print(np.size(plate))
+                    #print(plate)
+                    #print(plate[int(plateIndexLocal[int(iPlate)])])
+
+                    #print('------------------------')
+
+                    adjacentPoints = world.neighbours.IDList[plate[int(plateIndexLocal[int(iPlate)])]][0]
+                    for p in adjacentPoints:
+                        r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
+                                    (yFlow[plate[0]] - yFlow[p]) ** 2 +
+                                    (zFlow[plate[0]] - zFlow[p]) ** 2)
+                        if r < rLimit and plateID[p] < 0:
+                            plateListLocal[int(iPlateLocal)].append(p)
+                            plateID[p] = iPlate
+                            #print(iPlate)
+                    plateIndexLocal[int(iPlate)] += 1
+    plateList.append(plateListLocal)
+print(np.min(plateID))
+print(np.max(plateID))
+
+# Visualizes the globe, as projected or not.
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = plateID,
+                             projectTopography = True,
+                             projectRadiusSpan = [1, 1.03],
+                             interpolatedTriangleColor = True,
+                             colormap = 'gist_earth',
+                             randomColormap = True)
+
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = plateID,
+                             projectTopography = True,
+                             projectRadiusSpan = [1, 1.03],
+                             interpolatedTriangleColor = True,
+                             colormap = 'gist_earth',
+                             randomColormap = True)
+Visualization.VisualizeFlow(world.vertices,
+                            xFlow,
+                            yFlow,
+                            zFlow,
+                            world.faces,
+                            newFigure = False,
+                            sizeFactor = 0.03)
+
+print('============================')
+print('||>- Visualization done -<||')
+print('============================')
+mlab.show()
+quit()
+
 '''
 xFlow /= 10
 yFlow /= 10
@@ -188,57 +335,7 @@ for iPlate in range(numberOfPlates):
 
 
 
-numberOfPlatesTotal = 300
-numberOfPlatesEachIteration = 300
-plateID = -1*np.ones((world.numberOfvertices, 1))
-rLimit = 0.6
-stepLimit = 1000
 
-plateIndexLocal = np.zeros((world.numberOfvertices, 1))
-plateList = []#[[] for i in range(numberOfPlatesTotal)]
-
-
-
-for iRun in range(int(numberOfPlatesTotal/numberOfPlatesEachIteration)):
-    #print(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
-    #            numberOfPlatesEachIteration))
-    plateListLocal = [[] for i in range(numberOfPlatesEachIteration)]
-    #for iPlate in np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
-    #            numberOfPlatesEachIteration):
-    for iPlate in range(numberOfPlatesEachIteration):
-        initialPoint = [np.random.randint(0, world.numberOfvertices)]
-        while plateID[initialPoint] >= 0:
-            initialPoint = np.random.randint(0, world.numberOfvertices)
-        plateListLocal[int(iPlate)] = initialPoint
-        print(iPlate)
-        #print(int(iPlate))
-    print(plateListLocal)
-    for iStep in range(stepLimit):
-        #for iPlate, plate in enumerate(plateList):
-        for iPlate, iPlateLocal, plate in zip(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
-                numberOfPlatesEachIteration), range(numberOfPlatesEachIteration), plateListLocal):
-                if int(plateIndexLocal[int(iPlate)]) < np.size(plate):
-                    #print(iPlate)
-                    #print(int(iPlate))
-                    #print(plateIndexLocal[int(iPlate)])
-                    #print(int(plateIndexLocal[int(iPlate)]))
-                    #print(np.size(plate))
-                    #print(plate)
-                    #print(plate[int(plateIndexLocal[int(iPlate)])])
-
-                    #print('------------------------')
-
-                    adjacentPoints = world.neighbours.IDList[plate[int(plateIndexLocal[int(iPlate)])]][0]
-                    for p in adjacentPoints:
-                        r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
-                                    (yFlow[plate[0]] - yFlow[p]) ** 2 +
-                                    (zFlow[plate[0]] - zFlow[p]) ** 2)
-                        if r < rLimit and plateID[p] < 0:
-                            plateListLocal[int(iPlateLocal)].append(p)
-                            plateID[p] = iPlate
-                            #print(iPlate)
-                    plateIndexLocal[int(iPlate)] += 1
-    plateList.append(plateListLocal)
 
 ''''
 print(plateList)
@@ -272,57 +369,7 @@ for iPlate in range(numberOfPlates):
 #print(world.neighbours.IDList[initialPoint][0])
 #plateID[world.neighbours.IDList[initialPoint][0]] = 1
 #plateID[currentPlateList] = 1
-print(np.min(plateID))
-print(np.max(plateID))
 
-# Visualizes the globe, as projected or not.
-Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
-                             faces = world.faces.copy(),
-                             radius = world.radius.copy(),
-                             scalars = plateID,
-                             projectTopography = True,
-                             projectRadiusSpan = [1, 1.03],
-                             interpolatedTriangleColor = True,
-                             colormap = 'gist_earth',
-                             randomColormap = 'True')
-
-Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
-                             faces = world.faces.copy(),
-                             radius = world.radius.copy(),
-                             scalars = plateID,
-                             projectTopography = True,
-                             projectRadiusSpan = [1, 1.03],
-                             interpolatedTriangleColor = True,
-                             colormap = 'gist_earth',
-                             randomColormap = 'True')
-'''
-Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
-                             faces = world.faces.copy(),
-                             radius = world.radius.copy(),
-                             scalars = world.radius.copy(),
-                             projectTopography = True,
-                             projectRadiusSpan = [1, 1.03],
-                             interpolatedTriangleColor = False,
-                             colormap = 'gist_earth')
-'''
-Visualization.VisualizeFlow(world.vertices,
-                            xFlow,
-                            yFlow,
-                            zFlow,
-                            world.faces,
-                            newFigure = False,
-                            sizeFactor = 0.03)
-
-
-
-
-
-
-print('============================')
-print('||>- Visualization done -<||')
-print('============================')
-mlab.show()
-quit()
 
 fig0 = mlab.figure()
 fig0.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
