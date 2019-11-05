@@ -3,6 +3,8 @@ import Templates.Templates
 
 import Simulation.Noise
 
+import Visualization
+
 from scipy import interpolate
 from scipy.spatial import SphericalVoronoi
 from scipy.spatial import Delaunay
@@ -33,9 +35,9 @@ import time
 tic = time.clock()
 #world = Simulation.Templates.IcoSphere(6)
 
-#world = Templates.Templates.GetIcoSphere(6)
+world = Templates.Templates.GetIcoSphere(6)
 # IcoSphereSimple creates an icosphere without the neighbour lists.
-world = Templates.Templates.IcoSphereSimple(6)
+#world = Templates.Templates.IcoSphereSimple(6)
 
 
 
@@ -107,29 +109,193 @@ else:
 
 
 
-(xFlow, yFlow, zFlow) = Simulation.Noise.PerlinNoise3DFlow(8,
-                                                           world.vertices.copy(),
-                                                           1,
-                                                           1.5,
-                                                           projectOnSphere =False,
-                                                           normalizedVectors = False)
-
-# Project flow vectors onto sphere.
-r = np.sqrt((xFlow + world.vertices[:, 0]) ** 2
-            + (yFlow + world.vertices[:, 1]) ** 2
-            + (zFlow + world.vertices[:, 2]) ** 2)
-xFlow = (xFlow + world.vertices[:, 0]) / r - world.vertices[:, 0]
-yFlow = (yFlow + world.vertices[:, 1]) / r - world.vertices[:, 1]
-zFlow = (zFlow + world.vertices[:, 2]) / r - world.vertices[:, 2]
-# Normalizes flow vectors.
-r = np.sqrt(xFlow ** 2 + yFlow ** 2 + zFlow ** 2)
-xFlow /= r
-yFlow /= r
-zFlow /= r
+xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(4,
+                                                         world.vertices.copy(),
+                                                         1,
+                                                         1.5,
+                                                         projectOnSphere = True,
+                                                         normalizedVectors = True)
+'''
+xFlow /= 10
+yFlow /= 10
+zFlow /= 10
 
 
-import Visualization
+print(np.shape(world.vertices))
+print(np.shape(xFlow))
+print(np.shape( np.reshape(xFlow, (world.numberOfvertices, 1)) ))
+clusteringElements = np.append(world.vertices, np.reshape(xFlow, (world.numberOfvertices, 1)), axis=1)
+clusteringElements = np.append(clusteringElements, np.reshape(yFlow, (world.numberOfvertices, 1)), axis=1)
+clusteringElements = np.append(clusteringElements, np.reshape(zFlow, (world.numberOfvertices, 1)), axis=1)
+vertexClusteringKDTree = scipy.spatial.cKDTree(clusteringElements)
+
+
+p = np.append(world.vertices[10, :], xFlow[10])
+p = np.append(p, yFlow[10])
+p = np.append(p, zFlow[10])
+print(p)
+
+plateID = np.zeros((world.numberOfvertices, 1))
+result = vertexClusteringKDTree.query_ball_point(p, 0.1)
+plateIDS = result
+plateIDSTotal = result
+plateID[result] = 1
+
+
+while np.size(plateIDS) > 0:
+    pID = plateIDS[0]
+    del plateIDS[0]
+    p = np.append(world.vertices[pID, :], xFlow[pID])
+    p = np.append(p, yFlow[pID])
+    p = np.append(p, zFlow[pID])
+    result = vertexClusteringKDTree.query_ball_point(p, 0.1)
+    plateID[result] = 1
+    plateIDS += result
+    plateIDSTotal += result
+    print(plateIDS)
+
+print(plateIDS)
+'''
+
+'''
+plateList = []
+numberOfPlates = 100
+plateID = -1*np.ones((world.numberOfvertices, 1))
+rLimit = 0.7
+stepLimit = 600
+for iPlate in range(numberOfPlates):
+    initialPoint = np.random.randint(0, world.numberOfvertices)
+    while plateID[initialPoint] >= 0:
+        initialPoint = np.random.randint(0, world.numberOfvertices)
+    currentPlateList = [initialPoint]
+    initialFlowVector = [xFlow[initialPoint], yFlow[initialPoint], zFlow[initialPoint]]
+    iStep = 0
+    for platePoint in currentPlateList:
+        iStep += 1
+        adjacentPoints = world.neighbours.IDList[platePoint][0]
+        for p in adjacentPoints:
+            r = np.sqrt((initialFlowVector[0] - xFlow[p]) ** 2 +
+                        (initialFlowVector[1]-yFlow[p]) ** 2 +
+                        (initialFlowVector[2]-zFlow[p]) ** 2)
+            if r < rLimit and plateID[p] < 0:
+                currentPlateList.append(p)
+                plateID[p] = iPlate
+        if iStep == stepLimit:
+            break
+    plateList.append(currentPlateList)
+'''
+
+
+
+
+numberOfPlatesTotal = 300
+numberOfPlatesEachIteration = 300
+plateID = -1*np.ones((world.numberOfvertices, 1))
+rLimit = 0.6
+stepLimit = 1000
+
+plateIndexLocal = np.zeros((world.numberOfvertices, 1))
+plateList = []#[[] for i in range(numberOfPlatesTotal)]
+
+
+
+for iRun in range(int(numberOfPlatesTotal/numberOfPlatesEachIteration)):
+    #print(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
+    #            numberOfPlatesEachIteration))
+    plateListLocal = [[] for i in range(numberOfPlatesEachIteration)]
+    #for iPlate in np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
+    #            numberOfPlatesEachIteration):
+    for iPlate in range(numberOfPlatesEachIteration):
+        initialPoint = [np.random.randint(0, world.numberOfvertices)]
+        while plateID[initialPoint] >= 0:
+            initialPoint = np.random.randint(0, world.numberOfvertices)
+        plateListLocal[int(iPlate)] = initialPoint
+        print(iPlate)
+        #print(int(iPlate))
+    print(plateListLocal)
+    for iStep in range(stepLimit):
+        #for iPlate, plate in enumerate(plateList):
+        for iPlate, iPlateLocal, plate in zip(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
+                numberOfPlatesEachIteration), range(numberOfPlatesEachIteration), plateListLocal):
+                if int(plateIndexLocal[int(iPlate)]) < np.size(plate):
+                    #print(iPlate)
+                    #print(int(iPlate))
+                    #print(plateIndexLocal[int(iPlate)])
+                    #print(int(plateIndexLocal[int(iPlate)]))
+                    #print(np.size(plate))
+                    #print(plate)
+                    #print(plate[int(plateIndexLocal[int(iPlate)])])
+
+                    #print('------------------------')
+
+                    adjacentPoints = world.neighbours.IDList[plate[int(plateIndexLocal[int(iPlate)])]][0]
+                    for p in adjacentPoints:
+                        r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
+                                    (yFlow[plate[0]] - yFlow[p]) ** 2 +
+                                    (zFlow[plate[0]] - zFlow[p]) ** 2)
+                        if r < rLimit and plateID[p] < 0:
+                            plateListLocal[int(iPlateLocal)].append(p)
+                            plateID[p] = iPlate
+                            #print(iPlate)
+                    plateIndexLocal[int(iPlate)] += 1
+    plateList.append(plateListLocal)
+
+''''
+print(plateList)
+print(plateList[0])
+print(plateList[0][0])
+quit()
+for iPlate in range(numberOfPlates):
+    initialPoint = np.random.randint(0, world.numberOfvertices)
+    while plateID[initialPoint] >= 0:
+        initialPoint = np.random.randint(0, world.numberOfvertices)
+    currentPlateList = [initialPoint]
+    initialFlowVector = [xFlow[initialPoint], yFlow[initialPoint], zFlow[initialPoint]]
+    iStep = 0
+    for platePoint in currentPlateList:
+        iStep += 1
+        adjacentPoints = world.neighbours.IDList[platePoint][0]
+        for p in adjacentPoints:
+            r = np.sqrt((initialFlowVector[0] - xFlow[p]) ** 2 +
+                        (initialFlowVector[1]-yFlow[p]) ** 2 +
+                        (initialFlowVector[2]-zFlow[p]) ** 2)
+            if r < rLimit and plateID[p] < 0:
+                currentPlateList.append(p)
+                plateID[p] = iPlate
+        if iStep == stepLimit:
+            break
+    plateList.append(currentPlateList)
+'''
+
+#print(np.shape(world.neighbours.IDList))
+
+#print(world.neighbours.IDList[initialPoint][0])
+#plateID[world.neighbours.IDList[initialPoint][0]] = 1
+#plateID[currentPlateList] = 1
+print(np.min(plateID))
+print(np.max(plateID))
+
 # Visualizes the globe, as projected or not.
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = plateID,
+                             projectTopography = True,
+                             projectRadiusSpan = [1, 1.03],
+                             interpolatedTriangleColor = True,
+                             colormap = 'gist_earth',
+                             randomColormap = 'True')
+
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = plateID,
+                             projectTopography = True,
+                             projectRadiusSpan = [1, 1.03],
+                             interpolatedTriangleColor = True,
+                             colormap = 'gist_earth',
+                             randomColormap = 'True')
+'''
 Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              faces = world.faces.copy(),
                              radius = world.radius.copy(),
@@ -138,14 +304,19 @@ Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              projectRadiusSpan = [1, 1.03],
                              interpolatedTriangleColor = False,
                              colormap = 'gist_earth')
-
+'''
 Visualization.VisualizeFlow(world.vertices,
                             xFlow,
                             yFlow,
                             zFlow,
                             world.faces,
-                            newFigure = True,
+                            newFigure = False,
                             sizeFactor = 0.03)
+
+
+
+
+
 
 print('============================')
 print('||>- Visualization done -<||')
@@ -279,12 +450,12 @@ if CalculateFlow:
 
     clusterID = np.zeros((np.size(vertexFlowAngle), 1))
 
-    for r in range(45):
+    for initialPoint in range(45):
         #r = np.random.randint(0, world.numberOfvertices)
         #print(type(world.neighbours.IDList))
         #print(type(world.neighbours.IDList[0]))
         #print(world.neighbours.IDList[0])
-        clusterID[list(world.neighbours.IDList[r])] += 1
+        clusterID[list(world.neighbours.IDList[initialPoint])] += 1
     #clusterID[vertexNeighbourIDList[10]] = vertexNeighbourDistanceList[10]
 
     fig0 = mlab.figure()
@@ -564,7 +735,7 @@ if CalculateFlow:
 
     phiArray = np.arctan2(vertsArray[:, 1], vertsArray[:, 0]) + np.pi
     thetaArray = np.arctan2(vertsArray[:, 2], np.sqrt(vertsArray[:, 0]**2 + vertsArray[:, 1]**2))
-    r = np.sqrt(vertsArray[:, 0]**2 + vertsArray[:, 1]**2 + vertsArray[:, 2]**2)
+    initialPoint = np.sqrt(vertsArray[:, 0] ** 2 + vertsArray[:, 1] ** 2 + vertsArray[:, 2] ** 2)
 
     #interpolatedRadius
     #radiusMesh = interpolate.griddata((phiArray, thetaArray), particleID, (phiMesh, thetaMesh))
@@ -696,7 +867,7 @@ thetaMesh = np.transpose(thetaMesh)
 
 phiArray = np.arctan2(vertsArray[:, 1], vertsArray[:, 0]) + np.pi
 thetaArray = np.arctan2(vertsArray[:, 2], np.sqrt(vertsArray[:, 0]**2 + vertsArray[:, 1]**2))
-r = np.sqrt(vertsArray[:, 0]**2 + vertsArray[:, 1]**2 + vertsArray[:, 2]**2)
+initialPoint = np.sqrt(vertsArray[:, 0] ** 2 + vertsArray[:, 1] ** 2 + vertsArray[:, 2] ** 2)
 
 #interpolatedRadius
 #radiusMesh = interpolate.griddata((phiArray, thetaArray), particleID, (phiMesh, thetaMesh))
@@ -767,11 +938,11 @@ except:
         phiVector = np.linspace(0, 2 * np.pi * (1 - 1 / np.max((np.round(np.cos(theta) * 2 * np.pi / dTheta), 1))),
                                 np.max((np.round(np.cos(theta) * 2 * np.pi / dTheta), 1)))
         for phi in phiVector:
-            r = 1
-            particleCoordinates[iParticle, 0] = r * np.cos(phi) * np.cos(theta)
-            particleCoordinates[iParticle, 1] = r * np.sin(phi) * np.cos(theta)
-            particleCoordinates[iParticle, 2] = r * np.sin(theta)
-            particleCoordinates[iParticle, 3] = r
+            initialPoint = 1
+            particleCoordinates[iParticle, 0] = initialPoint * np.cos(phi) * np.cos(theta)
+            particleCoordinates[iParticle, 1] = initialPoint * np.sin(phi) * np.cos(theta)
+            particleCoordinates[iParticle, 2] = initialPoint * np.sin(theta)
+            particleCoordinates[iParticle, 3] = initialPoint
             particleCoordinates[iParticle, 4] = phi
             particleCoordinates[iParticle, 5] = theta
             iParticle += 1

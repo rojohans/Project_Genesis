@@ -222,15 +222,16 @@ class Neighbours:
                     IDListTemp.append(neighbourIDs)
                     distanceListTemp.append(distances)
             else:
-                radius = maxNeighbourDistance
+                for radius in [1, maxNeighbourDistance]:
+                    #radius = maxNeighbourDistance
 
-                neighbourIDs = vertexKDTree.query_ball_point(vertice, (radius + 0.5) * shortestDistance)
-                differences = vertice - vertices[neighbourIDs, :]
-                distances = np.linalg.norm(differences, axis=1)
-                distances = np.reshape(distances, (np.size(distances), 1))
+                    neighbourIDs = vertexKDTree.query_ball_point(vertice, (radius + 0.5) * shortestDistance)
+                    differences = vertice - vertices[neighbourIDs, :]
+                    distances = np.linalg.norm(differences, axis=1)
+                    distances = np.reshape(distances, (np.size(distances), 1))
 
-                IDListTemp.append(neighbourIDs)
-                distanceListTemp.append(distances)
+                    IDListTemp.append(neighbourIDs)
+                    distanceListTemp.append(distances)
             self.IDList.append(IDListTemp)
             self.distanceList.append(distanceListTemp)
 

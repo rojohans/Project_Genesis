@@ -131,7 +131,8 @@ class VisualizeGlobe():
                  projectRadiusSpan = [1, 1.1],
                  interpolatedTriangleColor = False,
                  colormap = 'gist_earth',
-                 newFigure = True):
+                 newFigure = True,
+                 randomColormap = False):
         # ------------------------------------------------------------------------------------------
         # Creates a triangular mesh object visualizing a globe given the inputs. The surface can be projected onto a sphere
         # or drawn as an irregular sphere (different radius for different vertices).
@@ -148,7 +149,7 @@ class VisualizeGlobe():
 
         if interpolatedTriangleColor:
             if projectTopography:
-                mesh = mlab.triangular_mesh(vertices[:, 0] * 0.99,
+                self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * 0.99,
                                             vertices[:, 1] * 0.99,
                                             vertices[:, 2] * 0.99,
                                             faces,
@@ -156,15 +157,15 @@ class VisualizeGlobe():
                                             colormap=colormap)
             else:
                 radius *= (projectRadiusSpan[1]-projectRadiusSpan[0])
-                mesh = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius[:, 0]),
-                                            vertices[:, 1] * (projectRadiusSpan[0] + radius[:, 0]),
-                                            vertices[:, 2] * (projectRadiusSpan[0] + radius[:, 0]),
+                self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius),
+                                            vertices[:, 1] * (projectRadiusSpan[0] + radius),
+                                            vertices[:, 2] * (projectRadiusSpan[0] + radius),
                                             faces,
                                             scalars=scalars[:, 0],
                                             colormap=colormap)
         else:
             if projectTopography:
-                mesh = mlab.triangular_mesh(vertices[:, 0] * 0.99,
+                self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * 0.99,
                                             vertices[:, 1] * 0.99,
                                             vertices[:, 2] * 0.99,
                                             faces,
@@ -173,13 +174,19 @@ class VisualizeGlobe():
                                             colormap=colormap)
             else:
                 radius *= (projectRadiusSpan[1]-projectRadiusSpan[0])
-                mesh = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius[:, 0]),
-                                            vertices[:, 1] * (projectRadiusSpan[0] + radius[:, 0]),
-                                            vertices[:, 2] * (projectRadiusSpan[0] + radius[:, 0]),
+                self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius),
+                                            vertices[:, 1] * (projectRadiusSpan[0] + radius),
+                                            vertices[:, 2] * (projectRadiusSpan[0] + radius),
                                             faces,
                                             representation='wireframe',
                                             opacity=0,
                                             colormap=colormap)
+            faceHeight = np.mean(scalars[faces], 1)
+            self.mayaviMeshObject.mlab_source.dataset.cell_data.scalars = faceHeight
+            self.mayaviMeshObject.mlab_source.dataset.cell_data.scalars.name = 'Cell data'
+            self.mayaviMeshObject.mlab_source.update()
+            self.mayaviMeshObject = mlab.pipeline.set_active_attribute(self.mayaviMeshObject, cell_scalars='Cell data')
+            self.mayaviMeshObject = mlab.pipeline.surface(self.mayaviMeshObject, colormap=colormap)
 
 
             '''
@@ -200,12 +207,13 @@ class VisualizeGlobe():
             #help(mesh.mlab_source.dataset.point_data.interpolate_allocate)
 
 
-            faceHeight = np.mean(radius[faces], 1)
-            mesh.mlab_source.dataset.cell_data.scalars = faceHeight
-            mesh.mlab_source.dataset.cell_data.scalars.name = 'Cell data'
-            mesh.mlab_source.update()
-            self.mayaviMeshObject = mlab.pipeline.set_active_attribute(mesh, cell_scalars='Cell data')
-            mlab.pipeline.surface(self.mayaviMeshObject, colormap=colormap)
+
+
+            if randomColormap:
+                lut = self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                lut[:, 0:3] =  np.random.randint(0, 255, (256, 3))
+                self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+
 
 class VisualizeFlow():
     def __init__(self,
@@ -236,8 +244,6 @@ class VisualizeFlow():
                                                          vertices[:, 2] * 0.95,
                                                          backgroundFaces,
                                                          color = (0, 0, 0))
-        print(np.shape(xFlow))
-        #print(np.shape(xFlow[:, 0]))
 
         self.mayaviFlowObject = mlab.quiver3d(vertices[:, 0],
                                               vertices[:, 1],
@@ -249,3 +255,13 @@ class VisualizeFlow():
                                               scale_factor=sizeFactor,
                                               color=arrowColor,
                                               mode='arrow')#arrow #cone
+
+
+
+
+
+
+
+
+
+

@@ -628,20 +628,19 @@ def PerlinNoise3DFlow(gridSize,
                       projectOnSphere = False,
                       normalizedVectors = False):
     xFlow = 2 * np.sqrt(1 / 3) * PerlinNoiseSpherical(gridSize,
-                                                      vertices,
+                                                      vertices.copy(),
                                                       numberOfInitialIterationsToSkip = numberOfInitialIterationsToSkip,
                                                       amplitudeScaling = amplitudeScaling) - np.sqrt(1 / 3)
     yFlow = 2 * np.sqrt(1 / 3) * PerlinNoiseSpherical(gridSize,
-                                                      vertices,
+                                                      vertices.copy(),
                                                       numberOfInitialIterationsToSkip = numberOfInitialIterationsToSkip,
                                                       amplitudeScaling = amplitudeScaling) - np.sqrt(1 / 3)
     zFlow = 2 * np.sqrt(1 / 3) * PerlinNoiseSpherical(gridSize,
-                                                      vertices,
+                                                      vertices.copy(),
                                                       numberOfInitialIterationsToSkip = numberOfInitialIterationsToSkip,
                                                       amplitudeScaling = amplitudeScaling) - np.sqrt(1 / 3)
-
     if projectOnSphere:
-        # Project flow vectors onto sphere.
+        # Projects the vectors onto a sphere.
         r = np.sqrt((xFlow + vertices[:, 0]) ** 2
                     + (yFlow + vertices[:, 1]) ** 2
                     + (zFlow + vertices[:, 2]) ** 2)
@@ -654,10 +653,4 @@ def PerlinNoise3DFlow(gridSize,
         xFlow /= r
         yFlow /= r
         zFlow /= r
-
-    print(np.shape(xFlow))
-    #xFlow = xFlow[:, 0]
-    #yFlow = yFlow[:, 0]
-    #zFlow = zFlow[:, 0]
-
     return xFlow, yFlow, zFlow
