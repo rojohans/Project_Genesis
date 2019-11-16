@@ -142,6 +142,7 @@ mlab.show()
 quit()
 '''
 
+'''
 xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(64,
                                                          world.vertices.copy(),
                                                          1,
@@ -161,9 +162,6 @@ xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(64,
                                                          amplitudeScaling = 1.2,
                                                          projectOnSphere = True,
                                                          normalizedVectors = True)
-
-# Kolla upp hur tektoniska plattor  har varierat över tid.
-
 Visualization.VisualizeFlow(world.vertices,
                             xFlow,
                             yFlow,
@@ -174,59 +172,411 @@ Visualization.VisualizeFlow(world.vertices,
 print('done')
 mlab.show()
 quit()
+'''
+
+# Kolla upp hur tektoniska plattor  har varierat över tid.
 
 
-numberOfPlatesTotal = 200
-numberOfPlatesEachIteration = 200
+if False:
+
+    mainPoint = world.vertices[np.random.randint(0, world.numberOfvertices), :]
+    candidatePoint = world.vertices[np.random.randint(0, world.numberOfvertices), :]
+
+    mainTheta = np.arccos(mainPoint[2])
+    candidateTheta = np.arccos(candidatePoint[2])
+    mainPhi = np.arctan(mainPoint[0] / mainPoint[1]) + np.pi * (np.abs(mainPoint[0]) - mainPoint[0]) / 2
+    candidatePhi = np.arctan(candidatePoint[0] / candidatePoint[1]) + np.pi * (np.abs(candidatePoint[0]) - candidatePoint[0]) / 2
+
+    #thetaVector = np.array([20, 30]).transpose()*np.pi/180
+    #phiVector = np.array([30, 50]).transpose()*np.pi/180
+    thetaVector = np.array([mainTheta, candidateTheta]).transpose()*np.pi/180
+    phiVector = np.array([mainPhi, candidatePhi]).transpose()*np.pi/180
+
+
+    xV = np.cos(phiVector) * np.cos(thetaVector)
+    yV = np.sin(phiVector) * np.cos(thetaVector)
+    zV = np.sin(thetaVector)
+
+    xP = np.array([mainPoint[0], candidatePoint[0]]).transpose()
+    yP = np.array([mainPoint[1], candidatePoint[1]]).transpose()
+    zP = np.array([mainPoint[2], candidatePoint[2]]).transpose()
+    xP = np.reshape(xP, (2, 1))
+    yP = np.reshape(yP, (2, 1))
+    zP = np.reshape(zP, (2, 1))
+    #xP = np.reshape(np.cos(phiVector) * np.sin(thetaVector), (2, 1))
+    #yP = np.reshape(np.sin(phiVector) * np.sin(thetaVector), (2, 1))
+    #zP = np.reshape(np.cos(thetaVector), (2, 1))
+
+    print([xV[0], yV[0], zV[0]])
+    print([xV[1], yV[1], zV[1]])
+    #print(np.shape(xP))
+
+    p = np.append(xP, yP, axis = 1)
+    p = np.append(p, zP, axis = 1)
+
+
+    dTheta = thetaVector[0] - thetaVector[1]
+    dPhi = phiVector[1] - phiVector[0]
+
+    ATheta = np.array([[np.cos(dTheta), -np.sin(dTheta)], [np.sin(dTheta), np.cos(dTheta)]])
+    APhi = np.array([[np.cos(dPhi), -np.sin(dPhi)], [ np.sin(dPhi), np.cos(dPhi)]])
+
+    vTheta = np.array([zV[0], np.sqrt(xV[0]**2 + yV[0]**2)]).transpose() # Vector to rotate
+    vThetaPrime = ATheta.dot(vTheta) # Rotated vector
+
+    xV[0] = xV[0] * vThetaPrime[1]/vTheta[1]
+    yV[0] = yV[0] * vThetaPrime[1]/vTheta[1]
+    zV[0] = vThetaPrime[0]
+
+    vPhi = np.array([xV[0], yV[0]]).transpose()
+    vPhiPrime = APhi.dot(vPhi)
+
+    xV[0] = vPhiPrime[0]
+    yV[0] = vPhiPrime[1]
+    p[1, :] = p[0, :]
+
+    print('--------------------')
+    print([xV[0], yV[0], zV[0]])
+    print([xV[1], yV[1], zV[1]])
+
+    Visualization.VisualizeFlow(p,
+                                xV,
+                                yV,
+                                zV,
+                                newFigure = False,
+                                sizeFactor = 0.03)
+    print('done')
+    mlab.show()
+    quit()
+
+# Generates the perlin flow, the function returns 3 distinct vectors.
+xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(4,
+                                                         world.vertices.copy(),
+                                                         1,
+                                                         amplitudeScaling = 1.5,
+                                                         projectOnSphere = True,
+                                                         normalizedVectors = True)
+
+
+identityMatrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+numberOfSets = 6
+numberOfPlatesEachSet = 200
 plateID = -1*np.ones((world.numberOfvertices, 1))
 rLimit = 0.4
-stepLimit = 2000
+stepLimit = 500
 
 plateIndexLocal = np.zeros((world.numberOfvertices, 1))
 plateList = []#[[] for i in range(numberOfPlatesTotal)]
 
-for iRun in range(int(numberOfPlatesTotal/numberOfPlatesEachIteration)):
-    #print(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
-    #            numberOfPlatesEachIteration))
-    plateListLocal = [[] for i in range(numberOfPlatesEachIteration)]
-    #for iPlate in np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
-    #            numberOfPlatesEachIteration):
-    for iPlate in range(numberOfPlatesEachIteration):
+
+availablePoints = [i for i in np.linspace(0, world.numberOfvertices-1, world.numberOfvertices, dtype=int)]
+
+
+for iRun in range(numberOfSets):
+    plateListSet = [[] for i in range(numberOfPlatesEachSet)]
+    for iPlateSet in range(numberOfPlatesEachSet):
         initialPoint = [np.random.randint(0, world.numberOfvertices)]
-        while plateID[initialPoint] >= 0:
-            initialPoint = np.random.randint(0, world.numberOfvertices)
-        plateListLocal[int(iPlate)] = initialPoint
-        #print(iPlate)
-        #print(int(iPlate))
-    #print(plateListLocal)
+
+        if np.size(availablePoints) > 0:
+            initialPoint = np.random.choice(availablePoints)
+            availablePoints.remove(initialPoint)
+        else:
+            # No more plates should be created.
+            break
+
+        plateListSet[int(iPlateSet)] = [initialPoint]
+        #print(initialPoint)
+        plateID[initialPoint] = iRun*numberOfPlatesEachSet + iPlateSet
+    #print(plateListSet)
+    print('==========================================================')
+    #quit()
     for iStep in range(stepLimit):
-        #for iPlate, plate in enumerate(plateList):
-        for iPlate, iPlateLocal, plate in zip(np.linspace(iRun * numberOfPlatesEachIteration, (iRun + 1) * numberOfPlatesEachIteration-1,
-                numberOfPlatesEachIteration), range(numberOfPlatesEachIteration), plateListLocal):
+        for iPlate, iPlateSet, plate in zip(np.linspace(iRun * numberOfPlatesEachSet, (iRun + 1) * numberOfPlatesEachSet-1,
+                numberOfPlatesEachSet), range(numberOfPlatesEachSet), plateListSet):
                 if int(plateIndexLocal[int(iPlate)]) < np.size(plate):
-                    #print(iPlate)
-                    #print(int(iPlate))
-                    #print(plateIndexLocal[int(iPlate)])
-                    #print(int(plateIndexLocal[int(iPlate)]))
-                    #print(np.size(plate))
-                    #print(plate)
-                    #print(plate[int(plateIndexLocal[int(iPlate)])])
+                    '''
+                    print(iPlateSet)
+                    print(iPlate)
+                    print(int(iPlate))
+                    print(plateIndexLocal[int(iPlate)])
+                    print(int(plateIndexLocal[int(iPlate)]))
+                    print(np.size(plate))
+                    print(plate)
+                    print(plate[int(plateIndexLocal[int(iPlate)])])
 
-                    #print('------------------------')
-
+                    print('------------------------')
+                    '''
                     adjacentPoints = world.neighbours.IDList[plate[int(plateIndexLocal[int(iPlate)])]][0]
                     for p in adjacentPoints:
-                        r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
-                                    (yFlow[plate[0]] - yFlow[p]) ** 2 +
-                                    (zFlow[plate[0]] - zFlow[p]) ** 2)
+
+                        # x-/y-/zFlow should be rotated before calculating r
+
+                        xFlow = np.reshape(xFlow, (world.numberOfvertices, 1))
+                        yFlow = np.reshape(yFlow, (world.numberOfvertices, 1))
+                        zFlow = np.reshape(zFlow, (world.numberOfvertices, 1))
+                        flowVectors = np.append(xFlow, yFlow, axis=1)
+                        flowVectors = np.append(flowVectors, zFlow, axis=1)
+
+                        # The main point, and the candidate point which might be added.
+                        mainPoint = world.vertices[plate[0], :].copy()
+                        candidatePoint = world.vertices[p, :].copy()
+
+                        mainTheta = np.arcsin(mainPoint[2])
+                        candidateTheta = np.arcsin(candidatePoint[2])
+                        if mainPoint[0]==0:
+                            # Take care of /0 case. The phi angle should be -pi/2 or pi/2 depending on the y-value.
+                            if mainPoint[1]>0:
+                                mainPhi = np.pi/2
+                            else:
+                                mainPhi = -np.pi/2
+                        else:
+                            mainPhi = np.arctan(mainPoint[1] / mainPoint[0]) + np.pi * (
+                                1 - np.sign(mainPoint[0])) / 2
+                        if candidatePoint[0]==0:
+                            # Take care of /0 case. The phi angle should be -pi/2 or pi/2 depending on the y-value.
+                            if candidatePoint[1]>0:
+                                candidatePhi = np.pi/2
+                            else:
+                                candidatePhi = -np.pi/2
+                        else:
+                            candidatePhi = np.arctan(candidatePoint[1] / candidatePoint[0]) + np.pi * (
+                                1 - np.sign(candidatePoint[0])) / 2
+
+                        # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
+                        mainFlow = flowVectors[plate[0], :].copy()
+                        candidateFlow = flowVectors[p, :].copy()
+
+                        dTheta = mainTheta - candidateTheta
+                        dPhi = mainPhi - candidatePhi
+
+                        ATheta = np.array([[np.cos(dTheta), -np.sin(dTheta)], [np.sin(dTheta), np.cos(dTheta)]])
+                        APhi = np.array([[np.cos(dPhi), -np.sin(dPhi)], [np.sin(dPhi), np.cos(dPhi)]])
+
+                        # Create method for rotating a vector. input: {dTheta, dPhi, vector}
+
+                        rhoCandidate = np.sqrt(candidatePoint[0] ** 2 + candidatePoint[1] ** 2)
+                        rhoMain = np.sqrt(mainPoint[0] ** 2 + mainPoint[1] ** 2)
+                        if rhoCandidate == 0:
+                            midpoint = np.array([0, 0, mainPoint[2]])
+                        else:
+                            midPoint = np.array(
+                                [candidatePoint[0] * rhoMain / rhoCandidate, candidatePoint[1] * rhoMain / rhoCandidate,
+                                 mainPoint[2]])
+
+                        # The crossVector specifies the axes around which the rotation will occur.
+                        crossVector = np.cross(candidatePoint, midPoint)
+
+                        skewMatrix = np.array([[0, -crossVector[2], crossVector[1]],
+                                               [crossVector[2], 0, -crossVector[0]],
+                                               [-crossVector[1], crossVector[0], 0]])
+                        skewMatrixSquared = np.dot(skewMatrix, skewMatrix)
+
+                        s = np.sqrt(crossVector[0] ** 2 + crossVector[1] ** 2 + crossVector[2] ** 2)
+                        c = np.dot(midPoint, candidatePoint)
+                        R = identityMatrix + skewMatrix + skewMatrixSquared * (1 - c) / (s ** 2 + 0.000001)
+
+                        vectorToRotate = candidatePoint + candidateFlow
+                        vLength = np.sqrt(vectorToRotate[0] ** 2 + vectorToRotate[1] ** 2 + vectorToRotate[2] ** 2)
+                        vectorToRotate /= vLength
+
+                        rotatedVector = np.dot(R, vectorToRotate)
+
+                        rotatedVector *= vLength
+                        rotatedVector -= midPoint
+
+                        vPhi = np.array([rotatedVector[0], rotatedVector[1]]).transpose()
+                        vPhiPrime = APhi.dot(vPhi)
+
+                        candidateFlow[0] = vPhiPrime[0]
+                        candidateFlow[1] = vPhiPrime[1]
+                        candidateFlow[2] = rotatedVector[2]
+
+
+
+
+
+                        '''
+                        #mainPoint = world.vertices[plate[0], :].copy()
+                        #candidatePoint = world.vertices[p, :].copy()
+                        # mainPoint = world.vertices[1337, :].copy()
+                        # candidatePoint = world.vertices[137, :].copy()
+                        #                        mainFlow = flowVectors[plate[0], :].copy()
+                        #                        candidateFlow = flowVectors[p, :].copy()
+                        a = [i for i in range(world.numberOfvertices)]
+
+                        N = 1000
+
+                        correctPhiList = []
+                        correctThetaList = []
+                        incorrectPhiList = []
+                        incorrectThetaList = []
+
+
+                        for i in range(N):
+                            b = world.vertices[np.random.choice(a, 2), :].copy()
+                            #mainPoint = np.array([0.00000001, 0, -1])
+                            #candidatePoint = np.array([1, 0, 0])
+                            mainPoint = b[0, :]
+                            candidatePoint = b[1, :]
+
+                            mainTheta = np.arcsin(mainPoint[2])
+                            candidateTheta = np.arcsin(candidatePoint[2])
+                            mainPhi = np.arctan(mainPoint[1] / mainPoint[0]) + np.pi * (
+                            1 - np.sign(mainPoint[0]))/2
+                            candidatePhi = np.arctan(candidatePoint[1] / candidatePoint[0]) + np.pi * (
+                            1 - np.sign(candidatePoint[0]))/2
+
+                            # Theta unit vectors.
+                            mainFlow = np.array([-np.cos(mainPhi)*np.sin(mainTheta), -np.sin(mainPhi)*np.sin(mainTheta), np.cos(mainTheta)])
+                            candidateFlow = np.array([-np.cos(candidatePhi) * np.sin(candidateTheta), -np.sin(candidatePhi) * np.sin(candidateTheta),
+                                                 np.cos(candidateTheta)])
+
+                            # Phi unit vectors.
+                            #mainFlow = np.array([-np.sin(mainPhi), np.cos(mainPhi), 0*np.sin(mainPhi)])
+                            #candidateFlow = np.array([-np.sin(candidatePhi), np.cos(candidatePhi), 0*np.sin(mainPhi)])
+
+
+
+
+                            if True:
+                                dTheta = mainTheta - candidateTheta
+                                dPhi = mainPhi - candidatePhi
+
+                                ATheta = np.array([[np.cos(dTheta), -np.sin(dTheta)], [np.sin(dTheta), np.cos(dTheta)]])
+                                APhi = np.array([[np.cos(dPhi), -np.sin(dPhi)], [np.sin(dPhi), np.cos(dPhi)]])
+
+                                # Create method for rotating a vector. input: {dTheta, dPhi, vector}
+
+
+                                I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+
+                                rhoCandidate = np.sqrt(candidatePoint[0] ** 2 + candidatePoint[1] ** 2)
+                                rhoMain = np.sqrt(mainPoint[0] ** 2 + mainPoint[1] ** 2)
+                                midPoint = np.array([candidatePoint[0] * rhoMain / rhoCandidate,
+                                                     candidatePoint[1] * rhoMain / rhoCandidate, mainPoint[2]])
+
+                                crossVector = np.cross(candidatePoint, midPoint)
+
+                                skewMatrix = np.array([[0, -crossVector[2], crossVector[1]],
+                                                       [crossVector[2], 0, -crossVector[0]],
+                                                       [-crossVector[1], crossVector[0], 0]])
+                                skewMatrixSquared = np.dot(skewMatrix, skewMatrix)
+
+                                s = np.sqrt(crossVector[0] ** 2 + crossVector[1] ** 2 + crossVector[2] ** 2)
+                                c = np.dot(midPoint, candidatePoint)
+                                R = I + skewMatrix + skewMatrixSquared * (1 - c) / s ** 2
+
+                                vectorToRotate = candidatePoint + candidateFlow
+                                vLength = np.sqrt(
+                                    vectorToRotate[0] ** 2 + vectorToRotate[1] ** 2 + vectorToRotate[2] ** 2)
+                                vectorToRotate /= vLength
+
+                                rotatedVector = np.dot(R, vectorToRotate)
+
+                                rotatedVector *= vLength
+                                rotatedVector -= midPoint
+
+                                vPhi = np.array([rotatedVector[0], rotatedVector[1]]).transpose()
+                                vPhiPrime = APhi.dot(vPhi)
+
+                                candidateFlow[0] = vPhiPrime[0]
+                                candidateFlow[1] = vPhiPrime[1]
+                                candidateFlow[2] = rotatedVector[2]
+
+                                dFlow = mainFlow - rotatedVector
+                                dFlowSize = np.sqrt(dFlow[0]**2 + dFlow[1]**2 + dFlow[2]**2)
+
+
+
+                            if np.sqrt(candidateFlow[0]**2 + candidateFlow[1]**2 + candidateFlow[2]**2) < 0.95:
+                                print('vector is too short.')
+
+                            vectorDiff = mainFlow - candidateFlow
+                            diffSize = np.sqrt(vectorDiff[0]**2 + vectorDiff[1]**2 + vectorDiff[2]**2 )
+                            if diffSize > 0.0001:
+                                # incorrect
+                                incorrectPhiList.append(dPhi)
+                                incorrectThetaList.append(dTheta)
+                                
+                                print('main point      = ', mainPoint)
+                                print('candidate point = ', candidatePoint)
+                                print('main flow       = ', mainFlow)
+                                print('candidate flow  = ', candidateFlow)
+                                print('main theta      = ', mainTheta)
+                                print('candidate theta = ', candidateTheta)
+                                print('main phi        = ', mainPhi)
+                                print('candidate phi   = ', candidatePhi)
+                                print('dTheta          = ', dTheta)
+                                print('dPhi            = ', dPhi)
+                                print('vector diff     = ', vectorDiff)
+                                print('diff size       = ', diffSize)
+                                print('----------------')
+                                print('----------------')
+                                
+                            else:
+                                #correct
+                                correctPhiList.append(dPhi)
+                                correctThetaList.append(dTheta)
+
+
+
+                        print(np.shape(correctPhiList))
+                        print(np.shape(incorrectPhiList))
+
+                        print(np.mean(correctPhiList))
+                        print(np.mean(incorrectPhiList))
+                        print(np.mean(correctThetaList))
+                        print(np.mean(incorrectThetaList))
+
+                        #print(np.max(correctThetaList))
+                        #print(np.min(correctThetaList))
+
+                        #print(np.max(incorrectThetaList))
+                        #print(np.min(incorrectThetaList))
+
+                        #Visualization.VisualizeFlow(np.append(mainPoint, candidatePoint, axis = 0),
+                        #                            [mainFlow[0], candidateFlow[0]],
+                        #                            [mainFlow[1], candidateFlow[1]],
+                        #                            [mainFlow[2], candidateFlow[2]],
+                        #                            newFigure=False,
+                        #                            sizeFactor=0.03)
+                        #mlab.show()
+
+                        quit()
+                        '''
+
+
+                        #r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
+                        #            (yFlow[plate[0]] - yFlow[p]) ** 2 +
+                        #            (zFlow[plate[0]] - zFlow[p]) ** 2)
+                        # Calculates the norm between the vectors. Will be used to determine if the candidate should be
+                        # part of the existing plate.
+                        r = np.sqrt((mainFlow[0] - candidateFlow[0]) ** 2 +
+                                    (mainFlow[1] - candidateFlow[1]) ** 2 +
+                                    (mainFlow[2] - candidateFlow[2]) ** 2)
+                        #print(r)
+                        #quit()
                         if r < rLimit and plateID[p] < 0:
-                            plateListLocal[int(iPlateLocal)].append(p)
+                            #print(plateID[p])
+                            plateListSet[int(iPlateSet)].append(p)
                             plateID[p] = iPlate
+                            #print(plate)
+                            #print(p)
+                            #print(iPlate)
+                            #print(iPlateSet)
+                            #print('----------')
+                            availablePoints.remove(p)
                             #print(iPlate)
                     plateIndexLocal[int(iPlate)] += 1
-    plateList.append(plateListLocal)
+    plateList.append(plateListSet)
+#print(plateList)
+print(np.size(availablePoints))
 print(np.min(plateID))
 print(np.max(plateID))
+
+
+# The plates should be compared and combined here.
+
 
 # Visualizes the globe, as projected or not.
 Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
@@ -238,7 +588,6 @@ Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              interpolatedTriangleColor = True,
                              colormap = 'gist_earth',
                              randomColormap = True)
-
 Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              faces = world.faces.copy(),
                              radius = world.radius.copy(),
@@ -249,9 +598,9 @@ Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              colormap = 'gist_earth',
                              randomColormap = True)
 Visualization.VisualizeFlow(world.vertices,
-                            xFlow,
-                            yFlow,
-                            zFlow,
+                            xFlow[:, 0],
+                            yFlow[:, 0],
+                            zFlow[:, 0],
                             world.faces,
                             newFigure = False,
                             sizeFactor = 0.03)

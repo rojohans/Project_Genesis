@@ -188,7 +188,6 @@ class VisualizeGlobe():
             self.mayaviMeshObject = mlab.pipeline.set_active_attribute(self.mayaviMeshObject, cell_scalars='Cell data')
             self.mayaviMeshObject = mlab.pipeline.surface(self.mayaviMeshObject, colormap=colormap)
 
-
             '''
             #mesh.mlab_source.dataset.point_data.scalars = radius[:, 0]
             #mesh.mlab_source.dataset.point_data.scalars.name = 'Point data'
@@ -211,6 +210,7 @@ class VisualizeGlobe():
         if randomColormap is True:
             lut = self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
             lut[:, 0:3] =  np.random.randint(0, 255, (256, 3))
+            lut[0, 0:3] = 0
             self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
 
 
