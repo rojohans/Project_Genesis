@@ -35,7 +35,7 @@ import time
 tic = time.clock()
 #world = Simulation.Templates.IcoSphere(6)
 
-world = Templates.Templates.GetIcoSphere(6)
+world = Templates.Templates.GetIcoSphere(4) # use 4 when testing tectonic plates.
 # IcoSphereSimple creates an icosphere without the neighbour lists.
 #world = Templates.Templates.IcoSphereSimple(6)
 
@@ -177,77 +177,6 @@ quit()
 # Kolla upp hur tektoniska plattor  har varierat över tid.
 
 
-if False:
-
-    mainPoint = world.vertices[np.random.randint(0, world.numberOfvertices), :]
-    candidatePoint = world.vertices[np.random.randint(0, world.numberOfvertices), :]
-
-    mainTheta = np.arccos(mainPoint[2])
-    candidateTheta = np.arccos(candidatePoint[2])
-    mainPhi = np.arctan(mainPoint[0] / mainPoint[1]) + np.pi * (np.abs(mainPoint[0]) - mainPoint[0]) / 2
-    candidatePhi = np.arctan(candidatePoint[0] / candidatePoint[1]) + np.pi * (np.abs(candidatePoint[0]) - candidatePoint[0]) / 2
-
-    #thetaVector = np.array([20, 30]).transpose()*np.pi/180
-    #phiVector = np.array([30, 50]).transpose()*np.pi/180
-    thetaVector = np.array([mainTheta, candidateTheta]).transpose()*np.pi/180
-    phiVector = np.array([mainPhi, candidatePhi]).transpose()*np.pi/180
-
-
-    xV = np.cos(phiVector) * np.cos(thetaVector)
-    yV = np.sin(phiVector) * np.cos(thetaVector)
-    zV = np.sin(thetaVector)
-
-    xP = np.array([mainPoint[0], candidatePoint[0]]).transpose()
-    yP = np.array([mainPoint[1], candidatePoint[1]]).transpose()
-    zP = np.array([mainPoint[2], candidatePoint[2]]).transpose()
-    xP = np.reshape(xP, (2, 1))
-    yP = np.reshape(yP, (2, 1))
-    zP = np.reshape(zP, (2, 1))
-    #xP = np.reshape(np.cos(phiVector) * np.sin(thetaVector), (2, 1))
-    #yP = np.reshape(np.sin(phiVector) * np.sin(thetaVector), (2, 1))
-    #zP = np.reshape(np.cos(thetaVector), (2, 1))
-
-    print([xV[0], yV[0], zV[0]])
-    print([xV[1], yV[1], zV[1]])
-    #print(np.shape(xP))
-
-    p = np.append(xP, yP, axis = 1)
-    p = np.append(p, zP, axis = 1)
-
-
-    dTheta = thetaVector[0] - thetaVector[1]
-    dPhi = phiVector[1] - phiVector[0]
-
-    ATheta = np.array([[np.cos(dTheta), -np.sin(dTheta)], [np.sin(dTheta), np.cos(dTheta)]])
-    APhi = np.array([[np.cos(dPhi), -np.sin(dPhi)], [ np.sin(dPhi), np.cos(dPhi)]])
-
-    vTheta = np.array([zV[0], np.sqrt(xV[0]**2 + yV[0]**2)]).transpose() # Vector to rotate
-    vThetaPrime = ATheta.dot(vTheta) # Rotated vector
-
-    xV[0] = xV[0] * vThetaPrime[1]/vTheta[1]
-    yV[0] = yV[0] * vThetaPrime[1]/vTheta[1]
-    zV[0] = vThetaPrime[0]
-
-    vPhi = np.array([xV[0], yV[0]]).transpose()
-    vPhiPrime = APhi.dot(vPhi)
-
-    xV[0] = vPhiPrime[0]
-    yV[0] = vPhiPrime[1]
-    p[1, :] = p[0, :]
-
-    print('--------------------')
-    print([xV[0], yV[0], zV[0]])
-    print([xV[1], yV[1], zV[1]])
-
-    Visualization.VisualizeFlow(p,
-                                xV,
-                                yV,
-                                zV,
-                                newFigure = False,
-                                sizeFactor = 0.03)
-    print('done')
-    mlab.show()
-    quit()
 
 # Generates the perlin flow, the function returns 3 distinct vectors.
 xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(4,
@@ -258,21 +187,32 @@ xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(4,
                                                          normalizedVectors = True)
 
 
-identityMatrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-numberOfSets = 2#6
-numberOfPlatesEachSet = 200
+import Utility
+tic = time.clock()
+
+xFlow = np.reshape(xFlow, (world.numberOfvertices, 1))
+yFlow = np.reshape(yFlow, (world.numberOfvertices, 1))
+zFlow = np.reshape(zFlow, (world.numberOfvertices, 1))
+flowVectors = np.append(xFlow, yFlow, axis=1)
+flowVectors = np.append(flowVectors, zFlow, axis=1)
+
+identityMatrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) # Used when rotating flow vectors.
+numberOfSets = 20
+numberOfPlatesEachSet = 20
 plateID = -1*np.ones((world.numberOfvertices, 1))
 rLimit = 0.2
 stepLimit = 500
 
 plateIndexLocal = np.zeros((world.numberOfvertices, 1))
-plateList = []#[[] for i in range(numberOfPlatesTotal)]
+plateListTmp = []#[[] for i in range(numberOfPlatesTotal)]
 
 
 availablePoints = [i for i in np.linspace(0, world.numberOfvertices-1, world.numberOfvertices, dtype=int)]
 
-
-for iRun in range(numberOfSets):
+iRun = -1
+#for iRun in range(numberOfSets):
+while np.size(availablePoints) > 0:
+    iRun += 1
     plateListSet = [[] for i in range(numberOfPlatesEachSet)]
     for iPlateSet in range(numberOfPlatesEachSet):
         initialPoint = [np.random.randint(0, world.numberOfvertices)]
@@ -297,96 +237,29 @@ for iRun in range(numberOfSets):
                     adjacentPoints = world.neighbours.IDList[plate[int(plateIndexLocal[int(iPlate)])]][0]
                     for p in adjacentPoints:
 
-                        # x-/y-/zFlow should be rotated before calculating r
+                        if True:
+                            # x-/y-/zFlow should be rotated before calculating r
 
-                        xFlow = np.reshape(xFlow, (world.numberOfvertices, 1))
-                        yFlow = np.reshape(yFlow, (world.numberOfvertices, 1))
-                        zFlow = np.reshape(zFlow, (world.numberOfvertices, 1))
-                        flowVectors = np.append(xFlow, yFlow, axis=1)
-                        flowVectors = np.append(flowVectors, zFlow, axis=1)
+                            # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
+                            mainFlow = flowVectors[plate[0], :].copy()
+                            candidateFlow = flowVectors[p, :].copy()
 
-                        # The main point, and the candidate point which might be added.
-                        mainPoint = world.vertices[plate[0], :].copy()
-                        candidatePoint = world.vertices[p, :].copy()
+                            # The main point, and the candidate point which might be added.
+                            mainPoint = world.vertices[plate[0], :].copy()
+                            candidatePoint = world.vertices[p, :].copy()
 
-                        mainTheta = np.arcsin(mainPoint[2])
-                        candidateTheta = np.arcsin(candidatePoint[2])
-                        if mainPoint[0]==0:
-                            # Take care of /0 case. The phi angle should be -pi/2 or pi/2 depending on the y-value.
-                            if mainPoint[1]>0:
-                                mainPhi = np.pi/2
-                            else:
-                                mainPhi = -np.pi/2
+                            candidateFlow = Utility.RotateVector2Steps(candidatePoint, mainPoint, candidateFlow)
+
+                            # Calculates the norm between the vectors. Will be used to determine if the candidate should be
+                            # part of the existing plate.
+                            r = np.sqrt((mainFlow[0] - candidateFlow[0]) ** 2 +
+                                        (mainFlow[1] - candidateFlow[1]) ** 2 +
+                                        (mainFlow[2] - candidateFlow[2]) ** 2)
                         else:
-                            mainPhi = np.arctan(mainPoint[1] / mainPoint[0]) + np.pi * (
-                                1 - np.sign(mainPoint[0])) / 2
-                        if candidatePoint[0]==0:
-                            # Take care of /0 case. The phi angle should be -pi/2 or pi/2 depending on the y-value.
-                            if candidatePoint[1]>0:
-                                candidatePhi = np.pi/2
-                            else:
-                                candidatePhi = -np.pi/2
-                        else:
-                            candidatePhi = np.arctan(candidatePoint[1] / candidatePoint[0]) + np.pi * (
-                                1 - np.sign(candidatePoint[0])) / 2
+                            r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
+                                        (yFlow[plate[0]] - yFlow[p]) ** 2 +
+                                        (zFlow[plate[0]] - zFlow[p]) ** 2)
 
-                        # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
-                        mainFlow = flowVectors[plate[0], :].copy()
-                        candidateFlow = flowVectors[p, :].copy()
-
-                        dTheta = mainTheta - candidateTheta
-                        dPhi = mainPhi - candidatePhi
-
-                        ATheta = np.array([[np.cos(dTheta), -np.sin(dTheta)], [np.sin(dTheta), np.cos(dTheta)]])
-                        APhi = np.array([[np.cos(dPhi), -np.sin(dPhi)], [np.sin(dPhi), np.cos(dPhi)]])
-
-                        # Create method for rotating a vector. input: {dTheta, dPhi, vector}
-
-                        rhoCandidate = np.sqrt(candidatePoint[0] ** 2 + candidatePoint[1] ** 2)
-                        rhoMain = np.sqrt(mainPoint[0] ** 2 + mainPoint[1] ** 2)
-                        if rhoCandidate == 0:
-                            midpoint = np.array([0, 0, mainPoint[2]])
-                        else:
-                            midPoint = np.array(
-                                [candidatePoint[0] * rhoMain / rhoCandidate, candidatePoint[1] * rhoMain / rhoCandidate,
-                                 mainPoint[2]])
-
-                        # The crossVector specifies the axes around which the rotation will occur.
-                        crossVector = np.cross(candidatePoint, midPoint)
-
-                        skewMatrix = np.array([[0, -crossVector[2], crossVector[1]],
-                                               [crossVector[2], 0, -crossVector[0]],
-                                               [-crossVector[1], crossVector[0], 0]])
-                        skewMatrixSquared = np.dot(skewMatrix, skewMatrix)
-
-                        s = np.sqrt(crossVector[0] ** 2 + crossVector[1] ** 2 + crossVector[2] ** 2)
-                        c = np.dot(midPoint, candidatePoint)
-                        R = identityMatrix + skewMatrix + skewMatrixSquared * (1 - c) / (s ** 2 + 0.000001)
-
-                        vectorToRotate = candidatePoint + candidateFlow
-                        vLength = np.sqrt(vectorToRotate[0] ** 2 + vectorToRotate[1] ** 2 + vectorToRotate[2] ** 2)
-                        vectorToRotate /= vLength
-
-                        rotatedVector = np.dot(R, vectorToRotate)
-
-                        rotatedVector *= vLength
-                        rotatedVector -= midPoint
-
-                        vPhi = np.array([rotatedVector[0], rotatedVector[1]]).transpose()
-                        vPhiPrime = APhi.dot(vPhi)
-
-                        candidateFlow[0] = vPhiPrime[0]
-                        candidateFlow[1] = vPhiPrime[1]
-                        candidateFlow[2] = rotatedVector[2]
-
-                        #r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
-                        #            (yFlow[plate[0]] - yFlow[p]) ** 2 +
-                        #            (zFlow[plate[0]] - zFlow[p]) ** 2)
-                        # Calculates the norm between the vectors. Will be used to determine if the candidate should be
-                        # part of the existing plate.
-                        r = np.sqrt((mainFlow[0] - candidateFlow[0]) ** 2 +
-                                    (mainFlow[1] - candidateFlow[1]) ** 2 +
-                                    (mainFlow[2] - candidateFlow[2]) ** 2)
                         #print(r)
                         #quit()
                         if r < rLimit and plateID[p] < 0:
@@ -402,7 +275,8 @@ for iRun in range(numberOfSets):
                             #print(iPlate)
                     plateIndexLocal[int(iPlate)] += 1
     for plate in plateListSet:
-        plateList.append(plate)
+        plateListTmp.append(plate)
+    print('Number of available points : ', np.size(availablePoints))
 #print(plateList)
 print('Number of available points : ', np.size(availablePoints))
 print(np.min(plateID))
@@ -411,12 +285,79 @@ print(np.max(plateID))
 
 # The plates should be compared and combined here.
 
+import Simulation.PlateDynamics
+
+plateList = []
+
+
 a = 0
+for plate in plateListTmp:
+    if np.size(plate)>0:
+        plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :])
+        #plateCollection.AddPlate(plateObject)
+        plateList.append(plateObject)
+        a += np.size(plate)
+
+plateCollection = Simulation.PlateDynamics.PlateCollection(plateList)  # Used for storing a list of plates to file.
+# All plates gets access to the list of all plates.
+Simulation.PlateDynamics.Plate.LinkLists(plateList,
+                                         world.kdTree,
+                                         flowVectors)
+# Creates/updates a KD-tree which is used to decide which plates are adjacent to which.
+Simulation.PlateDynamics.Plate.UpdateKDTree()
+
+
+
 for plate in plateList:
-    #print(np.size(plate))
-    a += np.size(plate)
+    plate.CalculateAdjacentPlates()
+    plate.UpdateAverage()
+    print(plate.adjacentPlateIDs)
+    print(plate.centerPoint)
+    print('------')
+
+
+
+#quit()
+
+
+'''
+#
+# This code interpolates plate ID's onto the vertices of a icosphere. The sphere can then be visualized where each color
+# correponds to a specific plate. This code should work even if the vertices of the plates are not aligned with the
+# vertices of the icosphere.
+#
+for iPlate, plate in enumerate(plateList):
+    if iPlate == 0:
+        v = plate.vertices
+        s = plate.ID*np.ones((plate.numberOfvertices, 1))
+    else:
+        v = np.append(v, plate.vertices, axis = 0)
+        s = np.append(s, plate.ID*np.ones((plate.numberOfvertices, 1)), axis = 0)
+
+    #plate.ID
+
+i = scipy.interpolate.NearestNDInterpolator(v, s)
+s = i(world.vertices)
+Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                             faces = world.faces.copy(),
+                             radius = world.radius.copy(),
+                             scalars = s,
+                             projectTopography = True,
+                             projectRadiusSpan = [1, 1.03],
+                             interpolatedTriangleColor = True,
+                             colormap = 'gist_earth',
+                             randomColormap = True)
+mlab.show()
+quit()
+'''
+
+
 print('a = ', a)
 
+
+# The plates should be compared and combined here.
+toc = time.clock()
+print('time in sec : ', toc-tic)
 
 #print(plateList)
 #print(plateList[0])

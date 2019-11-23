@@ -1,6 +1,6 @@
 
 import numpy as np
-import scipy.spatial
+from scipy import spatial
 #import cPickle
 import pickle
 
@@ -147,21 +147,23 @@ class IcoSphere(IcoSphereSimple):
     def __init__(self,
                  numberOfDivisions = 0):
         super().__init__(numberOfDivisions = numberOfDivisions)
-
+        self.kdTree = spatial.cKDTree(self.vertices)
         self.shortestDistance = np.linalg.norm(self.vertices[self.faces[0][0]] - self.vertices[self.faces[0][1]])
         self.neighbours = Neighbours(self.vertices,
                                      self.shortestDistance,
+                                     vertexKDTree=self.kdTree,
                                      maxNeighbourDistance = 10)
 
 class Neighbours:
     def __init__(self,
                  vertices,
                  shortestDistance,
-                 maxNeighbourDistance = 5):
+                 vertexKDTree,
+                 maxNeighbourDistance = 5,):
         #
         # maxNeighbourDistance: The maximum distance used to calculate neighbours, measured in units of the shortest neighbour distance.
         #
-        vertexKDTree = scipy.spatial.cKDTree(vertices)
+        #vertexKDTree = spatial.cKDTree(vertices)
 
 
         #Consider using tuples instaed of lists, this may reduce memory usage.
