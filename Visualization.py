@@ -210,7 +210,7 @@ class VisualizeGlobe():
         if randomColormap is True:
             lut = self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
             lut[:, 0:3] =  np.random.randint(0, 255, (256, 3))
-            lut[0, 0:3] = 0
+            #lut[0, 0:3] = 0
             self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
 
 
