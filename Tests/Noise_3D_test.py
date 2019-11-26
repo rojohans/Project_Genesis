@@ -178,76 +178,78 @@ quit()
 
 # Kolla upp hur tektoniska plattor  har varierat över tid.
 
-phiVector = np.zeros((world.numberOfvertices, 1))
-thetaVector = np.zeros((world.numberOfvertices, 1))
+if False:
+    # Tests to rotate all vectors to a given point. The vectors the the phi or theta unit vectors.
+    phiVector = np.zeros((world.numberOfvertices, 1))
+    thetaVector = np.zeros((world.numberOfvertices, 1))
 
-xFlow = np.zeros((world.numberOfvertices, 1))
-yFlow = np.zeros((world.numberOfvertices, 1))
-zFlow = np.zeros((world.numberOfvertices, 1))
+    xFlow = np.zeros((world.numberOfvertices, 1))
+    yFlow = np.zeros((world.numberOfvertices, 1))
+    zFlow = np.zeros((world.numberOfvertices, 1))
 
 
-for iPoint, point in enumerate(world.vertices):
-    '''
-    thetaVector[iPoint] = np.arcsin(point[2])
-    if point[0]==0:
-        # Take care of /0 case. The phi angle should be -pi/2 or pi/2 depending on the y-value.
-        if point[1]>0:
-            phiVector[iPoint] = np.pi/2
+    for iPoint, point in enumerate(world.vertices):
+        '''
+        thetaVector[iPoint] = np.arcsin(point[2])
+        if point[0]==0:
+            # Take care of /0 case. The phi angle should be -pi/2 or pi/2 depending on the y-value.
+            if point[1]>0:
+                phiVector[iPoint] = np.pi/2
+            else:
+                phiVector[iPoint] = -np.pi/2
         else:
-            phiVector[iPoint] = -np.pi/2
-    else:
-        phiVector[iPoint] = np.arctan(point[1] / point[0]) + np.pi * (
-            1 - np.sign(point[0])) / 2
-    '''
-    phiVector[iPoint], thetaVector[iPoint], radius = Utility.CaartesianToSpherical(point)
-    # Phi unit vectors.
-    xFlow[iPoint] = -np.sin(phiVector[iPoint])
-    yFlow[iPoint] = np.cos(phiVector[iPoint])
-    zFlow[iPoint] = 0
-    # Theta unit vector
-    #xFlow[iPoint] = -np.cos(phiVector[iPoint])*np.sin(thetaVector[iPoint])
-    #yFlow[iPoint] = -np.sin(phiVector[iPoint])*np.sin(thetaVector[iPoint])
-    #zFlow[iPoint] = np.cos(thetaVector[iPoint])
+            phiVector[iPoint] = np.arctan(point[1] / point[0]) + np.pi * (
+                1 - np.sign(point[0])) / 2
+        '''
+        phiVector[iPoint], thetaVector[iPoint], radius = Utility.CaartesianToSpherical(point)
+        # Phi unit vectors.
+        xFlow[iPoint] = -np.sin(phiVector[iPoint])
+        yFlow[iPoint] = np.cos(phiVector[iPoint])
+        zFlow[iPoint] = 0
+        # Theta unit vector
+        #xFlow[iPoint] = -np.cos(phiVector[iPoint])*np.sin(thetaVector[iPoint])
+        #yFlow[iPoint] = -np.sin(phiVector[iPoint])*np.sin(thetaVector[iPoint])
+        #zFlow[iPoint] = np.cos(thetaVector[iPoint])
 
-flowVectors = np.append(xFlow, yFlow, axis = 1)
-flowVectors = np.append(flowVectors, zFlow, axis = 1)
+    flowVectors = np.append(xFlow, yFlow, axis = 1)
+    flowVectors = np.append(flowVectors, zFlow, axis = 1)
 
-flowVectorsRotated = flowVectors.copy()
-fixedPoint = [1/np.sqrt(2), 0, 1/np.sqrt(2)]#[1/np.sqrt(2), 1/(np.sqrt(2)), 0]
-#fixedPoint = [1, 0, 0]
-tree = scipy.spatial.cKDTree(world.vertices)
-q = tree.query(fixedPoint)
-fixedPoint = world.vertices[q[1], :]
-fixedFlow = flowVectors[q[1], :]
-error = np.zeros((world.numberOfvertices, 1))
+    flowVectorsRotated = flowVectors.copy()
+    fixedPoint = [1/np.sqrt(2), 0, 1/np.sqrt(2)]#[1/np.sqrt(2), 1/(np.sqrt(2)), 0]
+    #fixedPoint = [1, 0, 0]
+    tree = scipy.spatial.cKDTree(world.vertices)
+    q = tree.query(fixedPoint)
+    fixedPoint = world.vertices[q[1], :]
+    fixedFlow = flowVectors[q[1], :]
+    error = np.zeros((world.numberOfvertices, 1))
 
-print(np.sqrt(fixedPoint[0]**2 + fixedPoint[1]**2 + fixedPoint[2]**2))
-for iVertex in range(world.numberOfvertices):
-    tmp = Utility.RotateVector2Steps(world.vertices[iVertex, :].copy(), fixedPoint, flowVectors[iVertex, :].copy())
-    flowVectorsRotated[iVertex, :] = tmp
-    error[iVertex] = Utility.VectorDistance(fixedFlow, tmp)
+    print(np.sqrt(fixedPoint[0]**2 + fixedPoint[1]**2 + fixedPoint[2]**2))
+    for iVertex in range(world.numberOfvertices):
+        tmp = Utility.RotateVector2Steps(world.vertices[iVertex, :].copy(), fixedPoint, flowVectors[iVertex, :].copy())
+        flowVectorsRotated[iVertex, :] = tmp
+        error[iVertex] = Utility.VectorDistance(fixedFlow, tmp)
 
 
-Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
-                             faces = world.faces.copy(),
-                             radius = world.radius.copy(),
-                             scalars = error,
-                             projectTopography = True,
-                             projectRadiusSpan = [1, 1.03],
-                             interpolatedTriangleColor = True,
-                             colormap = 'gist_earth',
-                             randomColormap = False)
+    Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
+                                 faces = world.faces.copy(),
+                                 radius = world.radius.copy(),
+                                 scalars = error,
+                                 projectTopography = True,
+                                 projectRadiusSpan = [1, 1.03],
+                                 interpolatedTriangleColor = True,
+                                 colormap = 'gist_earth',
+                                 randomColormap = False)
 
-Visualization.VisualizeFlow(world.vertices,
-                            flowVectorsRotated[:, 0],
-                            flowVectorsRotated[:, 1],
-                            flowVectorsRotated[:, 2],
-                            world.faces,
-                            newFigure = True,
-                            sizeFactor = 0.03)
-
-mlab.show()
-quit()
+    Visualization.VisualizeFlow(world.vertices,
+                                flowVectorsRotated[:, 0],
+                                flowVectorsRotated[:, 1],
+                                flowVectorsRotated[:, 2],
+                                world.faces,
+                                newFigure = True,
+                                sizeFactor = 0.03)
+    print('Visualization done')
+    mlab.show()
+    quit()
 
 
 
@@ -278,7 +280,6 @@ numberOfPlatesEachSet = 20
 plateID = -1*np.ones((world.numberOfvertices, 1))
 rLimit = 0.2
 stepLimit = 500#10#50
-
 
 
 plateIndexLocal = np.zeros((world.numberOfvertices, 1))
@@ -453,6 +454,7 @@ Visualization.VisualizeFlow(world.vertices,
 
 toc = time.clock()
 print('time in sec : ', toc-tic)
+print('Visualization done')
 mlab.show()
 quit()
 
