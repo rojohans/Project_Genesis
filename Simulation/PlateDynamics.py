@@ -76,9 +76,24 @@ class Plate():
         self.adjacentPlateIDs.sort()
 
     def UpdateFlow(self):
+
+
         for iVertex, vertex in enumerate(self.vertices):
+
+            phi, theta, radius = Utility.CaartesianToSpherical(vertex)
+            # Phi unit vector
+            phiVector = np.array([-np.sin(phi), np.cos(phi), 0])
+            # Theta unit vector
+            thetaVector = np.array([ -np.cos(phi) * np.sin(theta), -np.sin(phi) * np.sin(theta), np.cos(theta)])
+
+
+
             queryResult = self.worldKDTree.query(vertex)
             vertexFlow = self.worldFlowVectors[queryResult[1]:queryResult[1]+1, :]
+
+            vertexFlow = np.array([np.dot(vertexFlow, thetaVector)[0], np.dot(vertexFlow, phiVector)[0], 0])
+            vertexFlow = np.reshape(vertexFlow, (1, 3))
+
             if iVertex == 0:
                 self.verticesFlow = vertexFlow
             else:
@@ -108,8 +123,9 @@ class Plate():
             #vertex = self.vertices[iVertex, :]
             vertexFlow = self.verticesFlow[iVertex, :]
 
-            vertexFlowAtCenter = Utility.RotateVector2Steps(vertex, self.centerPoint, vertexFlow)
-            self.averageFlowVector += vertexFlowAtCenter
+            #vertexFlowAtCenter = Utility.RotateVector2Steps(vertex, self.centerPoint, vertexFlow)
+            #self.averageFlowVector += vertexFlowAtCenter
+            self.averageFlowVector += vertexFlow
         self.averageFlowVector /= self.numberOfVertices
         self.averageFlowVector /= np.sqrt( self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2 )
 
@@ -135,7 +151,8 @@ class Plate():
     def LinkLists(cls,
                   plateDictionary,
                   worldKDTree,
-                  worldFlowVectors):
+                  worldFlowVectors,
+                  world):
         #
         # Gives all the plates access to the list of plates.
         #
@@ -145,6 +162,7 @@ class Plate():
         cls.plateDictionary = plateDictionary
         cls.worldKDTree = worldKDTree
         cls.worldFlowVectors = worldFlowVectors
+        cls.world = world
 
     @classmethod
     def Initialize(cls,
@@ -160,7 +178,7 @@ class Plate():
         # Loops over all plates and checks if adjacent plate should be merged into new plates.
         #
 
-        platesJustMerged = False
+        platesJustMerged = False # don't think it's use.
 
         plateList = [plate for key, plate in cls.plateDictionary.items()]
         keyList = [key for key in cls.plateDictionary]
@@ -185,11 +203,12 @@ class Plate():
                         #try:
                         adjacentPlate = cls.plateDictionary[adjacentID] # error ?????
 
-                        tmp = Utility.RotateVector2Steps(adjacentPlate.centerPoint.copy(),
-                                                         plate.centerPoint.copy(),
-                                                         adjacentPlate.averageFlowVector.copy())
+                        #tmp = Utility.RotateVector2Steps(adjacentPlate.centerPoint.copy(),
+                        #                                 plate.centerPoint.copy(),
+                        #                                 adjacentPlate.averageFlowVector.copy())
                         # print('------')
-                        flowDifference = Utility.VectorDistance(plate.averageFlowVector, tmp)
+                        #flowDifference = Utility.VectorDistance(plate.averageFlowVector, tmp)
+                        flowDifference = Utility.VectorDistance(plate.averageFlowVector, adjacentPlate.averageFlowVector)
 
                         averageThickness = (plate.thickness * plate.numberOfVertices +
                                             adjacentPlate.thickness * adjacentPlate.numberOfVertices) / \
@@ -206,10 +225,11 @@ class Plate():
                             centerPoint /= r
                             a = 5
                             for iVertex in range(plate.numberOfVertices + adjacentPlate.numberOfVertices):
-                                tmp = Utility.RotateVector2Steps(bothPlatesVertices[iVertex, :].copy(),
-                                                                 centerPoint.copy(),
-                                                                 bothPlatesFlowVectors[iVertex, :].copy())
-                                b = Utility.VectorDistance(tmp, flowMean)
+                                #tmp = Utility.RotateVector2Steps(bothPlatesVertices[iVertex, :].copy(),
+                                #                                 centerPoint.copy(),
+                                #                                 bothPlatesFlowVectors[iVertex, :].copy())
+                                #b = Utility.VectorDistance(tmp, flowMean)
+                                b = Utility.VectorDistance(bothPlatesFlowVectors[iVertex, :], flowMean)
                                 if b > averageThickness:
                                     #print(b)
                                     a -= 1
@@ -224,8 +244,8 @@ class Plate():
 
 
 
-                            #if flowDifference <= averageThickness:
-                            if a > 0:
+                            if flowDifference <= averageThickness:
+                            #if a > 0:
                                 # print('Plates should merge')
                                 # print(adjacentPlate.ID)
                                 visitedKeys.append(adjacentPlate.ID)
@@ -246,6 +266,7 @@ class Plate():
                 #    platesJustMerged = False
                 #    break
 
+        '''
         keyList = [key for key in cls.plateDictionary]
         visitedKeys = []
         for key in keyList:
@@ -256,6 +277,7 @@ class Plate():
                     bestPlateSize = np.inf
                     bestPlateID = None
                     for adjacentID in plate.adjacentPlateIDs:
+                        # The small plate should join the adjacent plate with the most similar flow vector, not the largest or smallest plate.
                         if cls.plateDictionary[adjacentID].numberOfVertices < bestPlateSize:
                             bestPlateID = adjacentID
                     #print(plate.ID)
@@ -266,7 +288,7 @@ class Plate():
                     cls.MergePlates(cls.plateDictionary[bestPlateID], plate)
                     #print('Small plate merged into larger one.')
                     cls.plateDictionary[bestPlateID].UpdateAverage()
-
+        '''
 
 
 

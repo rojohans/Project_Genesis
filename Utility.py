@@ -60,6 +60,7 @@ def RotateVector2Steps(startPoint, endPoint, vectorToRotate):
 
 
     # Phi rotation
+
     midPhi, midTheta, radius = CaartesianToSpherical(midPoint)
     endPhi, endTheta, radius = CaartesianToSpherical(endPoint)
     t = endPhi-midPhi
@@ -69,12 +70,12 @@ def RotateVector2Steps(startPoint, endPoint, vectorToRotate):
     vRot = np.dot(A, v[0:2])
     v[0:2] = vRot
     rotatedVector = v - endPoint
-
+    '''
     # Phi rotation
-    #rotatedVector = RotateVector(startPoint=midPoint,
-    #                                     endPoint=endPoint,
-    #                                     vectorToRotate=rotatedVector,
-    #                                     a = 1)
+    rotatedVector = RotateVector(startPoint=midPoint,
+                                         endPoint=endPoint,
+                                         vectorToRotate=rotatedVector)
+    '''
     return rotatedVector
 
 def VectorDistance(v1, v2):

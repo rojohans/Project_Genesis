@@ -264,6 +264,32 @@ xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(4,
                                                          projectOnSphere = True,
                                                          normalizedVectors = True)
 
+thetaUnitVectors = np.zeros((world.numberOfvertices, 3))
+phiUnitVectors = np.zeros((world.numberOfvertices, 3))
+thetaVector = np.zeros((world.numberOfvertices, 1))
+phiVector = np.zeros((world.numberOfvertices, 1))
+for iPoint, point in enumerate(world.vertices):
+    phiVector[iPoint], thetaVector[iPoint], radius = Utility.CaartesianToSpherical(point)
+    # Phi unit vector
+    phiUnitVectors[iPoint, 0] = -np.sin(phiVector[iPoint])
+    phiUnitVectors[iPoint, 1] = np.cos(phiVector[iPoint])
+    phiUnitVectors[iPoint, 2] = 0
+    # Theta unit vector
+    thetaUnitVectors[iPoint, 0] = -np.cos(phiVector[iPoint])*np.sin(thetaVector[iPoint])
+    thetaUnitVectors[iPoint, 1] = -np.sin(phiVector[iPoint])*np.sin(thetaVector[iPoint])
+    thetaUnitVectors[iPoint, 2] = np.cos(thetaVector[iPoint])
+
+
+if False:
+    flowVectors = np.append(np.reshape(xFlow, (world.numberOfvertices, 1)), np.reshape(yFlow, (world.numberOfvertices, 1)), axis=1)
+    flowVectors = np.append(flowVectors, np.reshape(zFlow, (world.numberOfvertices, 1)), axis=1)
+    flowVectorsRotated = flowVectors.copy()
+    fixedPoint = [1 / np.sqrt(2), 0, 1 / np.sqrt(2)]  # [1/np.sqrt(2), 1/(np.sqrt(2)), 0]
+
+    print(np.sqrt(fixedPoint[0] ** 2 + fixedPoint[1] ** 2 + fixedPoint[2] ** 2))
+    for iVertex in range(world.numberOfvertices):
+        tmp = Utility.RotateVector2Steps(world.vertices[iVertex, :].copy(), fixedPoint, flowVectors[iVertex, :].copy())
+        flowVectorsRotated[iVertex, :] = tmp
 
 
 tic = time.clock()
@@ -276,9 +302,9 @@ flowVectors = np.append(flowVectors, zFlow, axis=1)
 
 identityMatrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) # Used when rotating flow vectors.
 numberOfSets = 20
-numberOfPlatesEachSet = 20
+numberOfPlatesEachSet = 1000
 plateID = -1*np.ones((world.numberOfvertices, 1))
-rLimit = 0.2
+rLimit = 0.4
 stepLimit = 500#10#50
 
 
@@ -318,23 +344,46 @@ while np.size(availablePoints) > 0:
 
                         if True:
                             # x-/y-/zFlow should be rotated before calculating r
+                            if False:
+                                # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
+                                mainFlow = flowVectors[plate[0], :].copy()
+                                candidateFlow = flowVectors[p, :].copy()
 
-                            # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
-                            mainFlow = flowVectors[plate[0], :].copy()
-                            candidateFlow = flowVectors[p, :].copy()
+                                # The main point, and the candidate point which might be added.
+                                mainPoint = world.vertices[plate[0], :].copy()
+                                candidatePoint = world.vertices[p, :].copy()
 
-                            # The main point, and the candidate point which might be added.
-                            mainPoint = world.vertices[plate[0], :].copy()
-                            candidatePoint = world.vertices[p, :].copy()
+                                candidateFlow = Utility.RotateVector2Steps(candidatePoint, mainPoint, candidateFlow)
 
-                            candidateFlow = Utility.RotateVector2Steps(candidatePoint, mainPoint, candidateFlow)
 
-                            # Calculates the norm between the vectors. Will be used to determine if the candidate should be
-                            # part of the existing plate.
-                            #r = Utility.VectorDistance(mainFlow, candidateFlow)
-                            r = np.sqrt((mainFlow[0] - candidateFlow[0]) ** 2 +
-                                        (mainFlow[1] - candidateFlow[1]) ** 2 +
-                                        (mainFlow[2] - candidateFlow[2]) ** 2)
+
+                                # Calculates the norm between the vectors. Will be used to determine if the candidate should be
+                                # part of the existing plate.
+                                r = Utility.VectorDistance(mainFlow, candidateFlow)
+                            else:
+                                if False:
+                                    r = Utility.VectorDistance(flowVectorsRotated[plate[0], :], flowVectorsRotated[p, :])
+                                else:
+                                    mainFlow = flowVectors[plate[0], :].copy()
+                                    candidateFlow = flowVectors[p, :].copy()
+
+                                    thetaMain = thetaUnitVectors[plate[0], :].copy()
+                                    phiMain = phiUnitVectors[plate[0], :].copy()
+
+                                    thetaCandidate = thetaUnitVectors[p, :].copy()
+                                    phiCandidate = phiUnitVectors[p, :].copy()
+
+                                    a = np.dot(mainFlow, thetaMain)
+                                    b = np.dot(mainFlow, phiMain)
+
+                                    c = np.dot(candidateFlow, thetaCandidate)
+                                    d = np.dot(candidateFlow, phiCandidate)
+
+                                    r = Utility.VectorDistance(np.array([a, b, 0]), np.array([c, d, 0]))
+
+                            #r = np.sqrt((mainFlow[0] - candidateFlow[0]) ** 2 +
+                            #            (mainFlow[1] - candidateFlow[1]) ** 2 +
+                            #            (mainFlow[2] - candidateFlow[2]) ** 2)
                         else:
                             r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
                                         (yFlow[plate[0]] - yFlow[p]) ** 2 +
@@ -397,7 +446,8 @@ print('The initial plates has been created.')
 # All plates gets access to the list of all plates.
 Simulation.PlateDynamics.Plate.LinkLists(plateDictionary,
                                          world.kdTree,
-                                         flowVectors)
+                                         flowVectors,
+                                         world)
 # Creates/updates a KD-tree which is used to decide which plates are adjacent to which.
 Simulation.PlateDynamics.Plate.UpdateKDTree()
 
@@ -454,9 +504,9 @@ Visualization.VisualizeFlow(world.vertices,
 
 toc = time.clock()
 print('time in sec : ', toc-tic)
-print('Visualization done')
-mlab.show()
-quit()
+#print('Visualization done')
+#mlab.show()
+#quit()
 
 
 print(len(Simulation.PlateDynamics.Plate.plateDictionary))
