@@ -80,19 +80,19 @@ class Plate():
 
         for iVertex, vertex in enumerate(self.vertices):
 
-            phi, theta, radius = Utility.CaartesianToSpherical(vertex)
+            #phi, theta, radius = Utility.CaartesianToSpherical(vertex)
             # Phi unit vector
-            phiVector = np.array([-np.sin(phi), np.cos(phi), 0])
+            #phiVector = np.array([-np.sin(phi), np.cos(phi), 0])
             # Theta unit vector
-            thetaVector = np.array([ -np.cos(phi) * np.sin(theta), -np.sin(phi) * np.sin(theta), np.cos(theta)])
+            #thetaVector = np.array([ -np.cos(phi) * np.sin(theta), -np.sin(phi) * np.sin(theta), np.cos(theta)])
 
 
 
             queryResult = self.worldKDTree.query(vertex)
             vertexFlow = self.worldFlowVectors[queryResult[1]:queryResult[1]+1, :]
 
-            vertexFlow = np.array([np.dot(vertexFlow, thetaVector)[0], np.dot(vertexFlow, phiVector)[0], 0])
-            vertexFlow = np.reshape(vertexFlow, (1, 3))
+            #vertexFlow = np.array([np.dot(vertexFlow, thetaVector)[0], np.dot(vertexFlow, phiVector)[0], 0])
+            #vertexFlow = np.reshape(vertexFlow, (1, 3))
 
             if iVertex == 0:
                 self.verticesFlow = vertexFlow
@@ -123,11 +123,14 @@ class Plate():
             #vertex = self.vertices[iVertex, :]
             vertexFlow = self.verticesFlow[iVertex, :]
 
-            #vertexFlowAtCenter = Utility.RotateVector2Steps(vertex, self.centerPoint, vertexFlow)
+            vertexFlowAtCenter = Utility.RotateVector(vertex, self.centerPoint, vertexFlow)
             #self.averageFlowVector += vertexFlowAtCenter
-            self.averageFlowVector += vertexFlow
-        self.averageFlowVector /= self.numberOfVertices
-        self.averageFlowVector /= np.sqrt( self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2 )
+
+            self.averageFlowVector = (self.averageFlowVector * iVertex + vertexFlowAtCenter) / (iVertex+1)
+
+            #self.averageFlowVector += vertexFlow
+        #self.averageFlowVector /= self.numberOfVertices
+        #self.averageFlowVector /= np.sqrt( self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2 )
 
 
     @classmethod
@@ -206,9 +209,12 @@ class Plate():
                         #tmp = Utility.RotateVector2Steps(adjacentPlate.centerPoint.copy(),
                         #                                 plate.centerPoint.copy(),
                         #                                 adjacentPlate.averageFlowVector.copy())
+                        tmp = Utility.RotateVector(adjacentPlate.centerPoint.copy(),
+                                                   plate.centerPoint.copy(),
+                                                   adjacentPlate.averageFlowVector.copy())
                         # print('------')
-                        #flowDifference = Utility.VectorDistance(plate.averageFlowVector, tmp)
-                        flowDifference = Utility.VectorDistance(plate.averageFlowVector, adjacentPlate.averageFlowVector)
+                        flowDifference = Utility.VectorDistance(plate.averageFlowVector, tmp)
+                        #flowDifference = Utility.VectorDistance(plate.averageFlowVector, adjacentPlate.averageFlowVector)
 
                         averageThickness = (plate.thickness * plate.numberOfVertices +
                                             adjacentPlate.thickness * adjacentPlate.numberOfVertices) / \
@@ -217,22 +223,42 @@ class Plate():
                             bothPlatesFlowVectors = np.append(plate.verticesFlow.copy(), adjacentPlate.verticesFlow.copy(), axis = 0)
                             bothPlatesVertices = np.append(plate.vertices.copy(), adjacentPlate.vertices.copy(), axis=0)
 
-                            flowMean = np.mean(bothPlatesFlowVectors, axis = 0)
-                            flowMean /= np.sqrt(flowMean[0]**2 + flowMean[1]**2 + flowMean[2]**2)
+                            #flowMean = np.mean(bothPlatesFlowVectors, axis = 0)
+                            #flowMean /= np.sqrt(flowMean[0]**2 + flowMean[1]**2 + flowMean[2]**2)
 
-                            centerPoint = np.mean(bothPlatesVertices, axis=0)
+                            #centerPoint = np.mean(bothPlatesVertices, axis=0)
+                            centerPoint = (plate.centerPoint*plate.numberOfVertices +
+                                           adjacentPlate.centerPoint+adjacentPlate.numberOfVertices) /\
+                                          (plate.numberOfVertices + adjacentPlate.numberOfVertices)
+
                             r = np.sqrt(centerPoint[0] ** 2 + centerPoint[1] ** 2 + centerPoint[2] ** 2)
                             centerPoint /= r
+
+                            # Calculates the mean flow at the center point for the combined plate.
+                            flowMean = np.array([0, 0, 0])
+                            for iVertex in range(plate.numberOfVertices + adjacentPlate.numberOfVertices):
+                                flowMean = (flowMean*iVertex + bothPlatesFlowVectors) / (iVertex + 1)
+
+
                             a = 5
                             for iVertex in range(plate.numberOfVertices + adjacentPlate.numberOfVertices):
                                 #tmp = Utility.RotateVector2Steps(bothPlatesVertices[iVertex, :].copy(),
                                 #                                 centerPoint.copy(),
                                 #                                 bothPlatesFlowVectors[iVertex, :].copy())
-                                #b = Utility.VectorDistance(tmp, flowMean)
-                                b = Utility.VectorDistance(bothPlatesFlowVectors[iVertex, :], flowMean)
-                                if b > averageThickness:
-                                    #print(b)
-                                    a -= 1
+                                tmp = Utility.RotateVector(bothPlatesVertices[iVertex, :].copy(),
+                                                           centerPoint.copy(),
+                                                           bothPlatesFlowVectors[iVertex, :].copy())
+                                b = Utility.VectorDistance(tmp, flowMean)
+                                #b = Utility.VectorDistance(bothPlatesFlowVectors[iVertex, :], flowMean)
+                                try:
+                                    if b > averageThickness:
+                                        #print(b)
+                                        a -= 1
+                                except:
+                                    print(b)
+                                    print(averageThickness)
+                                    print('|---> ERROR <---|')
+                                    quit()
 
 
 
@@ -244,8 +270,8 @@ class Plate():
 
 
 
-                            if flowDifference <= averageThickness:
-                            #if a > 0:
+                            #if flowDifference <= averageThickness:
+                            if a > 0:
                                 # print('Plates should merge')
                                 # print(adjacentPlate.ID)
                                 visitedKeys.append(adjacentPlate.ID)

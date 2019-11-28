@@ -263,21 +263,22 @@ xFlow, yFlow, zFlow = Simulation.Noise.PerlinNoise3DFlow(4,
                                                          amplitudeScaling = 1.5,
                                                          projectOnSphere = True,
                                                          normalizedVectors = True)
-
-thetaUnitVectors = np.zeros((world.numberOfvertices, 3))
-phiUnitVectors = np.zeros((world.numberOfvertices, 3))
-thetaVector = np.zeros((world.numberOfvertices, 1))
-phiVector = np.zeros((world.numberOfvertices, 1))
-for iPoint, point in enumerate(world.vertices):
-    phiVector[iPoint], thetaVector[iPoint], radius = Utility.CaartesianToSpherical(point)
-    # Phi unit vector
-    phiUnitVectors[iPoint, 0] = -np.sin(phiVector[iPoint])
-    phiUnitVectors[iPoint, 1] = np.cos(phiVector[iPoint])
-    phiUnitVectors[iPoint, 2] = 0
-    # Theta unit vector
-    thetaUnitVectors[iPoint, 0] = -np.cos(phiVector[iPoint])*np.sin(thetaVector[iPoint])
-    thetaUnitVectors[iPoint, 1] = -np.sin(phiVector[iPoint])*np.sin(thetaVector[iPoint])
-    thetaUnitVectors[iPoint, 2] = np.cos(thetaVector[iPoint])
+if False:
+    # Creates unitvectors (phi and theta).
+    thetaUnitVectors = np.zeros((world.numberOfvertices, 3))
+    phiUnitVectors = np.zeros((world.numberOfvertices, 3))
+    thetaVector = np.zeros((world.numberOfvertices, 1))
+    phiVector = np.zeros((world.numberOfvertices, 1))
+    for iPoint, point in enumerate(world.vertices):
+        phiVector[iPoint], thetaVector[iPoint], radius = Utility.CaartesianToSpherical(point)
+        # Phi unit vector
+        phiUnitVectors[iPoint, 0] = -np.sin(phiVector[iPoint])
+        phiUnitVectors[iPoint, 1] = np.cos(phiVector[iPoint])
+        phiUnitVectors[iPoint, 2] = 0
+        # Theta unit vector
+        thetaUnitVectors[iPoint, 0] = -np.cos(phiVector[iPoint])*np.sin(thetaVector[iPoint])
+        thetaUnitVectors[iPoint, 1] = -np.sin(phiVector[iPoint])*np.sin(thetaVector[iPoint])
+        thetaUnitVectors[iPoint, 2] = np.cos(thetaVector[iPoint])
 
 
 if False:
@@ -301,12 +302,30 @@ flowVectors = np.append(xFlow, yFlow, axis=1)
 flowVectors = np.append(flowVectors, zFlow, axis=1)
 
 identityMatrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) # Used when rotating flow vectors.
-numberOfSets = 20
-numberOfPlatesEachSet = 1000
+#numberOfSets = 20 # Not used.
+numberOfPlatesEachSet = 10
 plateID = -1*np.ones((world.numberOfvertices, 1))
-rLimit = 0.4
-stepLimit = 500#10#50
+rLimit = 1  #0.4
+stepLimit = 10500#10#50
 
+# |---- rLimit-angle table ----|
+# rLimit     angle (degrees)
+# sqrt(2)    90
+# 0.1        5.73
+# 0.2        11.48
+# 0.3        17.25
+# 0.4        23.07
+# 0.5        28.96
+# 0.6        34.92
+# 0.7        40.97
+# 0.8        47.16
+# 0.9        53.49
+# 1.0        60.00
+# 1.1        66.73
+# 1.2        73.74
+# 1.3        81.08
+# This angle represents the maximum deviation allowed for points to be considered to be of the same plate
+#
 
 plateIndexLocal = np.zeros((world.numberOfvertices, 1))
 plateListTmp = []#[[] for i in range(numberOfPlatesTotal)]
@@ -319,6 +338,8 @@ iRun = -1
 while np.size(availablePoints) > 0:
     iRun += 1
     plateListSet = [[] for i in range(numberOfPlatesEachSet)]
+    plateMeanPoints = np.zeros((numberOfPlatesEachSet, 3))
+    plateMeanFlows = np.zeros((numberOfPlatesEachSet, 3))
     for iPlateSet in range(numberOfPlatesEachSet):
         initialPoint = [np.random.randint(0, world.numberOfvertices)]
 
@@ -330,6 +351,8 @@ while np.size(availablePoints) > 0:
             break
 
         plateListSet[int(iPlateSet)] = [initialPoint]
+        plateMeanPoints[int(iPlateSet), :] = world.vertices[initialPoint, :]
+        plateMeanFlows[int(iPlateSet), :] = flowVectors[initialPoint, :]
         #print(initialPoint)
         plateID[initialPoint] = iRun*numberOfPlatesEachSet + iPlateSet
     #print(plateListSet)
@@ -344,19 +367,21 @@ while np.size(availablePoints) > 0:
 
                         if True:
                             # x-/y-/zFlow should be rotated before calculating r
-                            if False:
+                            if True:
                                 # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
-                                mainFlow = flowVectors[plate[0], :].copy()
+                                #mainFlow = flowVectors[plate[0], :].copy()
+                                mainFlow = plateMeanFlows[iPlateSet, :]
                                 candidateFlow = flowVectors[p, :].copy()
 
                                 # The main point, and the candidate point which might be added.
-                                mainPoint = world.vertices[plate[0], :].copy()
+                                #mainPoint = world.vertices[plate[0], :].copy()
+                                mainPoint = plateMeanPoints[iPlateSet, :]
                                 candidatePoint = world.vertices[p, :].copy()
 
-                                candidateFlow = Utility.RotateVector2Steps(candidatePoint, mainPoint, candidateFlow)
+                                #candidateFlow = Utility.RotateVector2Steps(candidatePoint, mainPoint, candidateFlow)
+                                candidateFlow = Utility.RotateVector(candidatePoint, mainPoint, candidateFlow)
 
-
-
+                                #print('flow vector norm: ', np.sqrt(mainFlow[0]**2 + mainFlow[1]**2 + mainFlow[2]**2))
                                 # Calculates the norm between the vectors. Will be used to determine if the candidate should be
                                 # part of the existing plate.
                                 r = Utility.VectorDistance(mainFlow, candidateFlow)
@@ -393,6 +418,21 @@ while np.size(availablePoints) > 0:
                         #quit()
                         if r < rLimit and plateID[p] < 0:
                             #print(plateID[p])
+
+
+                            #print(np.size(plateListSet[int(iPlateSet)]))
+
+                            plateMeanPointsOld = plateMeanPoints[iPlateSet, :].copy()
+                            plateMeanPoints[iPlateSet, :] = (plateMeanPoints[iPlateSet, :]*np.size(plateListSet[int(iPlateSet)]) + candidatePoint) / (np.size(plateListSet[int(iPlateSet)]) + 1)
+                            #print(plateMeanPointsOld)
+                            #print(plateMeanPoints[iPlateSet, :])
+                            #print('----')
+                            tmp1 = Utility.RotateVector(plateMeanPointsOld, plateMeanPoints[iPlateSet, :], plateMeanFlows[iPlateSet, :])
+                            tmp2 = Utility.RotateVector(plateMeanPointsOld, plateMeanPoints[iPlateSet, :],candidateFlow)
+                            plateMeanFlows[iPlateSet, :] = (tmp1*np.size(plateListSet[int(iPlateSet)]) + tmp2) / (np.size(plateListSet[int(iPlateSet)]) + 1)
+                            plateMeanFlows[iPlateSet, :] /= np.sqrt(plateMeanFlows[iPlateSet, 0]**2 + plateMeanFlows[iPlateSet, 1]**2 + plateMeanFlows[iPlateSet, 2]**2)
+
+
                             plateListSet[int(iPlateSet)].append(p)
                             plateID[p] = iPlate
                             #print(plate)
@@ -403,6 +443,7 @@ while np.size(availablePoints) > 0:
                             availablePoints.remove(p)
                             #print(iPlate)
                     plateIndexLocal[int(iPlate)] += 1
+
     for plate in plateListSet:
         plateListTmp.append(plate)
     print('Number of available points : ', np.size(availablePoints))
@@ -425,8 +466,10 @@ a = 0
 
 for plate in plateListTmp:
     if np.size(plate)>0:
+        #plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :],
+        #                                             thickness = rLimit)
         plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :],
-                                                     thickness = rLimit)
+                                                     thickness = 0.8)
         #plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :],
         #                                             thickness = 0.4)
         #plateCollection.AddPlate(plateObject)
@@ -504,9 +547,9 @@ Visualization.VisualizeFlow(world.vertices,
 
 toc = time.clock()
 print('time in sec : ', toc-tic)
-#print('Visualization done')
-#mlab.show()
-#quit()
+print('Visualization done')
+mlab.show()
+quit()
 
 
 print(len(Simulation.PlateDynamics.Plate.plateDictionary))
@@ -555,7 +598,7 @@ Visualization.VisualizeFlow(world.vertices,
 
 ticPlateMerge = time.clock()
 print(len(Simulation.PlateDynamics.Plate.plateDictionary))
-for i in range(10):
+for i in range(5):
     Simulation.PlateDynamics.Plate.CheckForMerge()
     print(len(Simulation.PlateDynamics.Plate.plateDictionary))
 
