@@ -37,7 +37,7 @@ import time
 tic = time.clock()
 #world = Simulation.Templates.IcoSphere(6)
 
-world = Templates.Templates.GetIcoSphere(6) # use 4 when testing tectonic plates.
+world = Templates.Templates.GetIcoSphere(4) # use 4 when testing tectonic plates.
 # IcoSphereSimple creates an icosphere without the neighbour lists.
 #world = Templates.Templates.IcoSphereSimple(6)
 
@@ -252,6 +252,60 @@ if False:
     quit()
 
 
+if True:
+    import Root_Directory
+    fileName = Root_Directory.Path() + '/Templates/Plate_Collection_' + str(1.2) + '.pkl'
+    #fileName = Root_Directory.Path() + '/Templates/Plate_Collection_1_2' + '.pkl'
+    fileToRead = open(fileName, 'rb')
+    plateCollection = pickle.load(fileToRead)
+    fileToRead.close()
+
+    plateDictionary = plateCollection.plateList
+
+    iPlate = -1
+    for key, plate in plateDictionary.items():
+        iPlate += 1
+        if iPlate == 0:
+            v = plate.vertices
+            s = plate.ID * np.ones((plate.numberOfVertices, 1))
+        else:
+            v = np.append(v, plate.vertices, axis=0)
+            s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
+
+        # plate.ID
+
+    i = scipy.interpolate.NearestNDInterpolator(v, s)
+    s = i(world.vertices)
+    Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
+                                 faces=world.faces.copy(),
+                                 radius=world.radius.copy(),
+                                 scalars=s,
+                                 projectTopography=True,
+                                 projectRadiusSpan=[1, 1.03],
+                                 interpolatedTriangleColor=True,
+                                 colormap='gist_earth',
+                                 randomColormap=True)
+    Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
+                                 faces=world.faces.copy(),
+                                 radius=world.radius.copy(),
+                                 scalars=s,
+                                 projectTopography=True,
+                                 projectRadiusSpan=[1, 1.03],
+                                 interpolatedTriangleColor=True,
+                                 colormap='gist_earth',
+                                 randomColormap=True)
+    Visualization.VisualizeFlow(world.vertices,
+                                plateCollection.xFlow,
+                                plateCollection.yFlow,
+                                plateCollection. zFlow,
+                                world.faces,
+                                newFigure=False,
+                                sizeFactor=0.03)
+    print('---- VISUALIZATION DONE ----')
+    mlab.show()
+    quit()
+
+
 
 
 
@@ -292,7 +346,6 @@ if False:
         tmp = Utility.RotateVector2Steps(world.vertices[iVertex, :].copy(), fixedPoint, flowVectors[iVertex, :].copy())
         flowVectorsRotated[iVertex, :] = tmp
 
-
 tic = time.clock()
 
 xFlow = np.reshape(xFlow, (world.numberOfvertices, 1))
@@ -301,156 +354,190 @@ zFlow = np.reshape(zFlow, (world.numberOfvertices, 1))
 flowVectors = np.append(xFlow, yFlow, axis=1)
 flowVectors = np.append(flowVectors, zFlow, axis=1)
 
-identityMatrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) # Used when rotating flow vectors.
-#numberOfSets = 20 # Not used.
-numberOfPlatesEachSet = 10
-plateID = -1*np.ones((world.numberOfvertices, 1))
-rLimit = 1  #0.4
-stepLimit = 10500#10#50
+if True:
+    # These are the rotations exises for each vertex.
+    flowRotationVectors = np.zeros((world.numberOfvertices, 3))
+    for iVertex, flow in enumerate(flowVectors):
+        flowRotationVectors[iVertex, :] = np.cross(world.vertices[iVertex, :], flow)
+def f():
+    identityMatrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) # Used when rotating flow vectors.
+    #numberOfSets = 20 # Not used.
+    numberOfPlatesEachSet = 1000
+    plateID = -1*np.ones((world.numberOfvertices, 1))
+    rLimit = 0.2  #0.4
+    stepLimit = 10500#10#50
 
-# |---- rLimit-angle table ----|
-# rLimit     angle (degrees)
-# sqrt(2)    90
-# 0.1        5.73
-# 0.2        11.48
-# 0.3        17.25
-# 0.4        23.07
-# 0.5        28.96
-# 0.6        34.92
-# 0.7        40.97
-# 0.8        47.16
-# 0.9        53.49
-# 1.0        60.00
-# 1.1        66.73
-# 1.2        73.74
-# 1.3        81.08
-# This angle represents the maximum deviation allowed for points to be considered to be of the same plate
-#
+    # |---- rLimit-angle table ----|
+    # rLimit     angle (degrees)
+    # 0.1        5.73
+    # 0.2        11.48
+    # 0.3        17.25
+    # 0.4        23.07
+    # 0.5        28.96
+    # 0.6        34.92
+    # 0.7        40.97
+    # 0.8        47.16
+    # 0.9        53.49
+    # 1.0        60.00
+    # 1.1        66.73
+    # 1.2        73.74
+    # 1.3        81.08
+    # sqrt(2)    90
+    # This angle represents the maximum deviation allowed for points to be considered to be of the same plate
+    #
 
-plateIndexLocal = np.zeros((world.numberOfvertices, 1))
-plateListTmp = []#[[] for i in range(numberOfPlatesTotal)]
+    plateIndexLocal = np.zeros((world.numberOfvertices, 1))
+    plateListTmp = []#[[] for i in range(numberOfPlatesTotal)]
 
 
-availablePoints = [i for i in np.linspace(0, world.numberOfvertices-1, world.numberOfvertices, dtype=int)]
+    availablePoints = [i for i in np.linspace(0, world.numberOfvertices-1, world.numberOfvertices, dtype=int)]
 
-iRun = -1
-#for iRun in range(numberOfSets):
-while np.size(availablePoints) > 0:
-    iRun += 1
-    plateListSet = [[] for i in range(numberOfPlatesEachSet)]
-    plateMeanPoints = np.zeros((numberOfPlatesEachSet, 3))
-    plateMeanFlows = np.zeros((numberOfPlatesEachSet, 3))
-    for iPlateSet in range(numberOfPlatesEachSet):
-        initialPoint = [np.random.randint(0, world.numberOfvertices)]
+    iRun = -1
+    #for iRun in range(numberOfSets):
+    while np.size(availablePoints) > 0:
+        iRun += 1
+        plateListSet = [[] for i in range(numberOfPlatesEachSet)]
+        #plateMeanPoints = np.zeros((numberOfPlatesEachSet, 3))
+        #plateMeanFlows = np.zeros((numberOfPlatesEachSet, 3))
+        for iPlateSet in range(numberOfPlatesEachSet):
+            initialPoint = [np.random.randint(0, world.numberOfvertices)]
 
-        if np.size(availablePoints) > 0:
-            initialPoint = np.random.choice(availablePoints)
-            availablePoints.remove(initialPoint)
-        else:
-            # No more plates should be created.
-            break
+            if np.size(availablePoints) > 0:
+                initialPoint = np.random.choice(availablePoints)
+                availablePoints.remove(initialPoint)
+            else:
+                # No more plates should be created.
+                break
 
-        plateListSet[int(iPlateSet)] = [initialPoint]
-        plateMeanPoints[int(iPlateSet), :] = world.vertices[initialPoint, :]
-        plateMeanFlows[int(iPlateSet), :] = flowVectors[initialPoint, :]
-        #print(initialPoint)
-        plateID[initialPoint] = iRun*numberOfPlatesEachSet + iPlateSet
-    #print(plateListSet)
-    print('==========================================================')
-    #quit()
-    for iStep in range(stepLimit):
-        for iPlate, iPlateSet, plate in zip(np.linspace(iRun * numberOfPlatesEachSet, (iRun + 1) * numberOfPlatesEachSet-1,
-                numberOfPlatesEachSet), range(numberOfPlatesEachSet), plateListSet):
-                if int(plateIndexLocal[int(iPlate)]) < np.size(plate):
-                    adjacentPoints = world.neighbours.IDList[plate[int(plateIndexLocal[int(iPlate)])]][0]
-                    for p in adjacentPoints:
+            plateListSet[int(iPlateSet)] = [initialPoint]
+            #plateMeanPoints[int(iPlateSet), :] = world.vertices[initialPoint, :]
+            #plateMeanFlows[int(iPlateSet), :] = flowVectors[initialPoint, :]
+            #print(initialPoint)
+            plateID[initialPoint] = iRun*numberOfPlatesEachSet + iPlateSet
+        #print(plateListSet)
+        print('==========================================================')
+        #quit()
+        for iStep in range(stepLimit):
+            for iPlate, iPlateSet, plate in zip(np.linspace(iRun * numberOfPlatesEachSet, (iRun + 1) * numberOfPlatesEachSet-1,
+                    numberOfPlatesEachSet), range(numberOfPlatesEachSet), plateListSet):
 
-                        if True:
-                            # x-/y-/zFlow should be rotated before calculating r
+                    if int(plateIndexLocal[int(iPlate)]) < np.size(plate):
+                    #if plateIndexLocal[int(iPlate)] < np.size(plate):
+                        adjacentPoints = world.neighbours.IDList[plate[int(plateIndexLocal[int(iPlate)])]][0]
+                        for p in adjacentPoints:
+
                             if True:
-                                # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
-                                #mainFlow = flowVectors[plate[0], :].copy()
-                                mainFlow = plateMeanFlows[iPlateSet, :]
-                                candidateFlow = flowVectors[p, :].copy()
+                                # x-/y-/zFlow should be rotated before calculating r
+                                if True:
+                                    if False:
+                                        # Flow vectors. The candidate flow vector will be rotated to the position of the main flow vector.
+                                        mainFlow = flowVectors[plate[0], :].copy()
+                                        #mainFlow = plateMeanFlows[iPlateSet, :]
+                                        candidateFlow = flowVectors[p, :].copy()
 
-                                # The main point, and the candidate point which might be added.
-                                #mainPoint = world.vertices[plate[0], :].copy()
-                                mainPoint = plateMeanPoints[iPlateSet, :]
-                                candidatePoint = world.vertices[p, :].copy()
+                                        # The main point, and the candidate point which might be added.
+                                        mainPoint = world.vertices[plate[0], :].copy()
+                                        #mainPoint = plateMeanPoints[iPlateSet, :]
+                                        candidatePoint = world.vertices[p, :].copy()
 
-                                #candidateFlow = Utility.RotateVector2Steps(candidatePoint, mainPoint, candidateFlow)
-                                candidateFlow = Utility.RotateVector(candidatePoint, mainPoint, candidateFlow)
+                                        #candidateFlow = Utility.RotateVector2Steps(candidatePoint, mainPoint, candidateFlow)
+                                        candidateFlow = Utility.RotateVector(candidatePoint, mainPoint, candidateFlow)
 
-                                #print('flow vector norm: ', np.sqrt(mainFlow[0]**2 + mainFlow[1]**2 + mainFlow[2]**2))
-                                # Calculates the norm between the vectors. Will be used to determine if the candidate should be
-                                # part of the existing plate.
-                                r = Utility.VectorDistance(mainFlow, candidateFlow)
-                            else:
-                                if False:
-                                    r = Utility.VectorDistance(flowVectorsRotated[plate[0], :], flowVectorsRotated[p, :])
+                                        #print('flow vector norm: ', np.sqrt(mainFlow[0]**2 + mainFlow[1]**2 + mainFlow[2]**2))
+                                        # Calculates the norm between the vectors. Will be used to determine if the candidate should be
+                                        # part of the existing plate.
+                                        r = Utility.VectorDistance(mainFlow, candidateFlow)
+                                    else:
+                                        r = Utility.VectorDistance(flowRotationVectors[plate[0], :], flowRotationVectors[p, :])
                                 else:
-                                    mainFlow = flowVectors[plate[0], :].copy()
-                                    candidateFlow = flowVectors[p, :].copy()
+                                    if False:
+                                        r = Utility.VectorDistance(flowVectorsRotated[plate[0], :], flowVectorsRotated[p, :])
+                                    else:
+                                        mainFlow = flowVectors[plate[0], :].copy()
+                                        candidateFlow = flowVectors[p, :].copy()
 
-                                    thetaMain = thetaUnitVectors[plate[0], :].copy()
-                                    phiMain = phiUnitVectors[plate[0], :].copy()
+                                        thetaMain = thetaUnitVectors[plate[0], :].copy()
+                                        phiMain = phiUnitVectors[plate[0], :].copy()
 
-                                    thetaCandidate = thetaUnitVectors[p, :].copy()
-                                    phiCandidate = phiUnitVectors[p, :].copy()
+                                        thetaCandidate = thetaUnitVectors[p, :].copy()
+                                        phiCandidate = phiUnitVectors[p, :].copy()
 
-                                    a = np.dot(mainFlow, thetaMain)
-                                    b = np.dot(mainFlow, phiMain)
+                                        a = np.dot(mainFlow, thetaMain)
+                                        b = np.dot(mainFlow, phiMain)
 
-                                    c = np.dot(candidateFlow, thetaCandidate)
-                                    d = np.dot(candidateFlow, phiCandidate)
+                                        c = np.dot(candidateFlow, thetaCandidate)
+                                        d = np.dot(candidateFlow, phiCandidate)
 
-                                    r = Utility.VectorDistance(np.array([a, b, 0]), np.array([c, d, 0]))
+                                        r = Utility.VectorDistance(np.array([a, b, 0]), np.array([c, d, 0]))
 
-                            #r = np.sqrt((mainFlow[0] - candidateFlow[0]) ** 2 +
-                            #            (mainFlow[1] - candidateFlow[1]) ** 2 +
-                            #            (mainFlow[2] - candidateFlow[2]) ** 2)
-                        else:
-                            r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
-                                        (yFlow[plate[0]] - yFlow[p]) ** 2 +
-                                        (zFlow[plate[0]] - zFlow[p]) ** 2)
+                                #r = np.sqrt((mainFlow[0] - candidateFlow[0]) ** 2 +
+                                #            (mainFlow[1] - candidateFlow[1]) ** 2 +
+                                #            (mainFlow[2] - candidateFlow[2]) ** 2)
+                            else:
+                                r = np.sqrt((xFlow[plate[0]] - xFlow[p]) ** 2 +
+                                            (yFlow[plate[0]] - yFlow[p]) ** 2 +
+                                            (zFlow[plate[0]] - zFlow[p]) ** 2)
 
-                        #print(r)
-                        #quit()
-                        if r < rLimit and plateID[p] < 0:
-                            #print(plateID[p])
-
-
-                            #print(np.size(plateListSet[int(iPlateSet)]))
-
-                            plateMeanPointsOld = plateMeanPoints[iPlateSet, :].copy()
-                            plateMeanPoints[iPlateSet, :] = (plateMeanPoints[iPlateSet, :]*np.size(plateListSet[int(iPlateSet)]) + candidatePoint) / (np.size(plateListSet[int(iPlateSet)]) + 1)
-                            #print(plateMeanPointsOld)
-                            #print(plateMeanPoints[iPlateSet, :])
-                            #print('----')
-                            tmp1 = Utility.RotateVector(plateMeanPointsOld, plateMeanPoints[iPlateSet, :], plateMeanFlows[iPlateSet, :])
-                            tmp2 = Utility.RotateVector(plateMeanPointsOld, plateMeanPoints[iPlateSet, :],candidateFlow)
-                            plateMeanFlows[iPlateSet, :] = (tmp1*np.size(plateListSet[int(iPlateSet)]) + tmp2) / (np.size(plateListSet[int(iPlateSet)]) + 1)
-                            plateMeanFlows[iPlateSet, :] /= np.sqrt(plateMeanFlows[iPlateSet, 0]**2 + plateMeanFlows[iPlateSet, 1]**2 + plateMeanFlows[iPlateSet, 2]**2)
+                            #print(r)
+                            #quit()
+                            if r < rLimit and plateID[p] < 0:
+                                #print(plateID[p])
 
 
-                            plateListSet[int(iPlateSet)].append(p)
-                            plateID[p] = iPlate
-                            #print(plate)
-                            #print(p)
-                            #print(iPlate)
-                            #print(iPlateSet)
-                            #print('----------')
-                            availablePoints.remove(p)
-                            #print(iPlate)
-                    plateIndexLocal[int(iPlate)] += 1
+                                #print(np.size(plateListSet[int(iPlateSet)]))
 
-    for plate in plateListSet:
-        plateListTmp.append(plate)
-    print('Number of available points : ', np.size(availablePoints))
+                                #plateMeanPointsOld = plateMeanPoints[iPlateSet, :].copy()
+                                #plateMeanPoints[iPlateSet, :] = (plateMeanPoints[iPlateSet, :]*np.size(plateListSet[int(iPlateSet)])+
+                                #                                 candidatePoint) / (np.size(plateListSet[int(iPlateSet)]) + 1)
+                                #print(plateMeanPointsOld)
+                                #print(plateMeanPoints[iPlateSet, :])
+                                #print('----')
+                                #tmp1 = Utility.RotateVector(plateMeanPointsOld, plateMeanPoints[iPlateSet, :], plateMeanFlows[iPlateSet, :])
+                                #tmp2 = Utility.RotateVector(plateMeanPointsOld, plateMeanPoints[iPlateSet, :],candidateFlow)
+                                #plateMeanFlows[iPlateSet, :] = (tmp1*np.size(plateListSet[int(iPlateSet)]) + tmp2) / (np.size(plateListSet[int(iPlateSet)]) + 1)
+                                #plateMeanFlows[iPlateSet, :] /= np.sqrt(plateMeanFlows[iPlateSet, 0]**2 + plateMeanFlows[iPlateSet, 1]**2 + plateMeanFlows[iPlateSet, 2]**2)
+
+                                #plateMeanFlows[iPlateSet, :] *= 0
+                                #print(plate)
+                                #for iTmpPlate, tmpPoint in enumerate(plate):
+                                #    plateMeanFlows[iPlateSet, :] += (plateMeanFlows[iPlateSet, :] * iTmpPlate + flowVectors[tmpPoint, :]) / (iTmpPlate + 1)
+                                #    plateMeanFlows[iPlateSet, :] /= np.sqrt(
+                                #        plateMeanFlows[iPlateSet, 0] ** 2 + plateMeanFlows[iPlateSet, 1] ** 2 +
+                                #        plateMeanFlows[iPlateSet, 2] ** 2)
+
+                                plateListSet[int(iPlateSet)].append(p)
+                                plateID[p] = iPlate
+                                #print(plate)
+                                #print(p)
+                                #print(iPlate)
+                                #print(iPlateSet)
+                                #print('----------')
+                                availablePoints.remove(p)
+                                #print(iPlate)
+                        plateIndexLocal[int(iPlate)] += 1
+
+        for plate in plateListSet:
+            plateListTmp.append(plate)
+        #break
+        print('Number of available points : ', np.size(availablePoints))
+    return plateListTmp
+
+#from line_profiler import LineProfiler
+#lp = LineProfiler()
+#lp_wrapper = lp(f)
+#lp_wrapper()
+#lp.print_stats()
+#quit()
+
+plateListTmp = f()
+
+
+
 #print(plateList)
-print('Number of available points : ', np.size(availablePoints))
-print(np.min(plateID))
-print(np.max(plateID))
+#print('Number of available points : ', np.size(availablePoints))
+#print(np.min(plateID))
+#print(np.max(plateID))
+
 
 
 # The plates should be compared and combined here.
@@ -468,10 +555,10 @@ for plate in plateListTmp:
     if np.size(plate)>0:
         #plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :],
         #                                             thickness = rLimit)
-        plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :],
-                                                     thickness = 0.8)
         #plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :],
-        #                                             thickness = 0.4)
+        #                                             thickness = 1.2)
+        plateObject = Simulation.PlateDynamics.Plate(vertices = world.vertices[plate, :],
+                                                     thickness = 1.2)# 0.6
         #plateCollection.AddPlate(plateObject)
         plateDictionary[plateObject.ID] = plateObject
         a += np.size(plate)
@@ -487,9 +574,13 @@ print('The initial plates has been created.')
 
 #plateCollection = Simulation.PlateDynamics.PlateCollection(plateList)  # Used for storing a list of plates to file.
 # All plates gets access to the list of all plates.
+#Simulation.PlateDynamics.Plate.LinkLists(plateDictionary,
+#                                         world.kdTree,
+#                                         flowVectors,
+#                                         world)
 Simulation.PlateDynamics.Plate.LinkLists(plateDictionary,
                                          world.kdTree,
-                                         flowVectors,
+                                         flowRotationVectors,
                                          world)
 # Creates/updates a KD-tree which is used to decide which plates are adjacent to which.
 Simulation.PlateDynamics.Plate.UpdateKDTree()
@@ -499,10 +590,21 @@ for iPlate, plate in plateDictionary.items():
     plate.CalculateAdjacentPlates()
     plate.UpdateFlow() # Interpolates the flow onto the plate points.
     plate.UpdateAverage()
+    plate.CalculateStress()
     #print(plate.adjacentPlateIDs)
     #print(plate.centerPoint)
     #print(plate.averageFlowVector)
     #print('------')
+
+    #print(plateMeanFlows[iPlate, :])
+    #print(plate.averageFlowVector)
+    #print(plateMeanPoints[iPlate, :])
+    #print(plate.centerPoint)
+    #plateMeanPoints[iPlate, :] = plate.centerPoint
+    #plateMeanFlows[iPlate, :] = plate.averageFlowVector
+    #print('----------------')
+
+
 
 
 iPlate = -1
@@ -528,6 +630,7 @@ Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              interpolatedTriangleColor = True,
                              colormap = 'gist_earth',
                              randomColormap = True)
+
 Visualization.VisualizeGlobe(vertices = world.vertices.copy(),
                              faces = world.faces.copy(),
                              radius = world.radius.copy(),
@@ -545,11 +648,36 @@ Visualization.VisualizeFlow(world.vertices,
                             newFigure = False,
                             sizeFactor = 0.03)
 
+'''
+# Used to visualize the flow within one plate, and the plates mean flow.
+Visualization.VisualizeFlow(world.vertices,
+                            xFlow[:, 0],
+                            yFlow[:, 0],
+                            zFlow[:, 0],
+                            world.faces,
+                            newFigure = True,
+                            sizeFactor = 0.03)
+Visualization.VisualizeFlow(plateDictionary[0].vertices,
+                            plateDictionary[0].verticesFlow[:, 0],
+                            plateDictionary[0].verticesFlow[:, 1],
+                            plateDictionary[0].verticesFlow[:, 2],
+                            newFigure = False,
+                            sizeFactor = 0.04,
+                            arrowColor = (0, 0, 1))
+Visualization.VisualizeFlow(np.reshape(plateDictionary[0].centerPoint, (1, 3)),
+                            plateDictionary[0].averageFlowVector[0],
+                            plateDictionary[0].averageFlowVector[1],
+                            plateDictionary[0].averageFlowVector[2],
+                            newFigure = False,
+                            sizeFactor = 0.06,
+                            arrowColor = (1, 1, 1))
+'''
+
 toc = time.clock()
 print('time in sec : ', toc-tic)
-print('Visualization done')
-mlab.show()
-quit()
+#print('Visualization done')
+#mlab.show()
+#quit()
 
 
 print(len(Simulation.PlateDynamics.Plate.plateDictionary))
@@ -594,17 +722,26 @@ Visualization.VisualizeFlow(world.vertices,
                             world.faces,
                             newFigure = False,
                             sizeFactor = 0.03)
-
+#print('============================')
+#print('||>- Visualization done -<||')
+#print('============================')
+#mlab.show()
+#quit()
 
 ticPlateMerge = time.clock()
 print(len(Simulation.PlateDynamics.Plate.plateDictionary))
-for i in range(5):
+for i in range(8):
     Simulation.PlateDynamics.Plate.CheckForMerge()
     print(len(Simulation.PlateDynamics.Plate.plateDictionary))
 
 print('======================================')
 for key, plate in Simulation.PlateDynamics.Plate.plateDictionary.items():
-    print(plate.numberOfVertices)
+    plate.UpdateFlow() # Interpolates the flow onto the plate points.
+    plate.UpdateAverage()
+    plate.CalculateStress()
+    print('# points       = ', plate.numberOfVertices)
+    print('maximum stress = ', np.max(plate.stressVector))
+    print('-----------------------')
 tocPlateMarge = time.clock()
 
 print('Time to merge plates: ', tocPlateMarge-ticPlateMerge)
@@ -665,6 +802,21 @@ Visualization.VisualizeFlow(world.vertices,
                             world.faces,
                             newFigure = False,
                             sizeFactor = 0.03)
+
+
+
+pltCol = Simulation.PlateDynamics.PlateCollection(plateDictionary = plateDictionary,
+                                                  xFlow = xFlow[:, 0],
+                                                  yFlow = yFlow[:, 0],
+                                                  zFlow = zFlow[:, 0])
+
+import Root_Directory
+fileName = Root_Directory.Path() + '/Templates/Plate_Collection_' + str(1.2) + '.pkl'
+fileToOpen = open(fileName, 'wb')
+pickle.dump(pltCol, fileToOpen, pickle.HIGHEST_PROTOCOL)
+fileToOpen.close()
+
+
 print('============================')
 print('||>- Visualization done -<||')
 print('============================')
