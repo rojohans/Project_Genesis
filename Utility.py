@@ -78,6 +78,24 @@ def RotateVector2Steps(startPoint, endPoint, vectorToRotate):
     '''
     return rotatedVector
 
+def RotateAroundAxis(vectorToRotate, axisVector, angle):
+
+    ux = axisVector[0]
+    uy = axisVector[1]
+    uz = axisVector[2]
+
+    c = np.cos(angle)
+    s = np.sin(angle)
+    t = 1-c
+
+    rotationMatrix = np.array([[t*ux**2+c, t*ux*uy-s*uz, t*ux*uz+s*uy],
+                               [t*ux*uy+s*uz, t*uy**2+c, t*uy*uz-s*ux],
+                               [t*ux*uz-s*uy, t*uy*uz+s*ux, t*uz**2+c]])
+
+    return np.transpose(np.dot(rotationMatrix, np.transpose(vectorToRotate)))
+    #return np.dot(rotationMatrix, vectorToRotate)
+
+
 def VectorDistance(v1, v2):
     # Return the 2norm of the difference between two vectors.
     return np.sqrt((v1[0]-v2[0])**2 + (v1[1]-v2[1])**2 + (v1[2]-v2[2])**2 )
