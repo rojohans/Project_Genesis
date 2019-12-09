@@ -37,7 +37,7 @@ import time
 tic = time.clock()
 #world = Simulation.Templates.IcoSphere(6)
 
-world = Templates.Templates.GetIcoSphere(4) # use 4 when testing tectonic plates.
+world = Templates.Templates.GetIcoSphere(6) # use 4 when testing tectonic plates.
 # IcoSphereSimple creates an icosphere without the neighbour lists.
 #world = Templates.Templates.IcoSphereSimple(6)
 
@@ -262,6 +262,37 @@ if True:
 
     plateDictionary = plateCollection.plateList
 
+
+    xFlow = np.reshape(plateCollection.xFlow, (world.numberOfvertices, 1))
+    yFlow = np.reshape(plateCollection.yFlow, (world.numberOfvertices, 1))
+    zFlow = np.reshape(plateCollection.zFlow, (world.numberOfvertices, 1))
+    flowVectors = np.append(xFlow, yFlow, axis=1)
+    flowVectors = np.append(flowVectors, zFlow, axis=1)
+    # These are the rotations exises for each vertex.
+    flowRotationVectors = np.zeros((world.numberOfvertices, 3))
+    for iVertex, flow in enumerate(flowVectors):
+        flowRotationVectors[iVertex, :] = np.cross(world.vertices[iVertex, :], flow)
+
+    
+    Simulation.PlateDynamics.Plate.LinkLists(plateDictionary,
+                                             world.kdTree,
+                                             flowRotationVectors,
+                                             world)
+    for key, plate in plateDictionary.items():
+        plate.UpdateFlow()
+        plate.UpdateAverage()
+    #    print(plate.averageFlowVector)
+    #    print('----------')
+    #Simulation.PlateDynamics.Plate.CheckForMerge()
+
+
+    for key, plate in plateDictionary.items():
+        for iPoint in range(plate.numberOfVertices):
+
+            plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 10*np.pi/180)
+        break
+
+
     iPlate = -1
     for key, plate in plateDictionary.items():
         iPlate += 1
@@ -271,21 +302,24 @@ if True:
         else:
             v = np.append(v, plate.vertices, axis=0)
             s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
+        break
 
         # plate.ID
+    v = np.append(v, 0.95*world.vertices, axis = 0)
+    s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis = 0)
 
     i = scipy.interpolate.NearestNDInterpolator(v, s)
     s = i(world.vertices)
-    Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
-                                 faces=world.faces.copy(),
-                                 radius=world.radius.copy(),
-                                 scalars=s,
-                                 projectTopography=True,
-                                 projectRadiusSpan=[1, 1.03],
-                                 interpolatedTriangleColor=True,
-                                 colormap='gist_earth',
-                                 randomColormap=True)
-    Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
+    #Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
+    #                             faces=world.faces.copy(),
+    #                             radius=world.radius.copy(),
+    #                             scalars=s,
+    #                             projectTopography=True,
+    #                             projectRadiusSpan=[1, 1.03],
+    #                             interpolatedTriangleColor=True,
+    #                             colormap='gist_earth',
+    #                             randomColormap=True)
+    visObj = Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
                                  faces=world.faces.copy(),
                                  radius=world.radius.copy(),
                                  scalars=s,
@@ -301,6 +335,62 @@ if True:
                                 world.faces,
                                 newFigure=False,
                                 sizeFactor=0.03)
+
+    tic = time.clock()
+    @mlab.animate
+    def anim():
+        for i in range(100):
+            #s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
+            iPlate = -1
+            for key, plate in plateDictionary.items():
+                iPlate += 1
+                if iPlate < 2:
+                    #print(plate.averageFlowVector)
+                    #print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
+                    #plate.averageFlowVector /= Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
+                    #for iPoint in range(plate.numberOfVertices):
+                    #    plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
+                    #                                                         plate.averageFlowVector, 1 * np.pi / 180)
+                    #    #plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
+                    #    #                                                     plate.verticesFlow[iPoint, :], 1 * np.pi / 180)
+                    plate.vertices = Utility.RotateAroundAxis(plate.vertices, plate.averageFlowVector, 1 * np.pi / 180)
+                    plate.UpdateFlow()
+                    plate.UpdateAverage()
+                    #break
+            #quit()
+
+            iPlate = -1
+            for key, plate in plateDictionary.items():
+                iPlate += 1
+                if iPlate < 2:
+                    if iPlate == 0:
+                        v = plate.vertices
+                        s = plate.ID * np.ones((plate.numberOfVertices, 1))
+                    else:
+                        v = np.append(v, plate.vertices, axis=0)
+                        s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
+                #break
+
+                # plate.ID
+            v = np.append(v, 0.95 * world.vertices, axis=0)
+            s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis=0)
+
+            i = scipy.interpolate.NearestNDInterpolator(v, s)
+            s = i(world.vertices)
+
+            visObj.mayaviMeshObject.mlab_source.scalars = s
+            yield
+            #mlab.start_recording() # Look into recording of animations.
+            # mlab.move() # Could possibly be used to track the plate.
+            #help(mlab.start_recording)
+            #quit()
+
+    anim()
+    toc = time.clock()
+    print('time in seconds : ', toc-tic)
+    mlab.show()
+    quit()
+
     print('---- VISUALIZATION DONE ----')
     mlab.show()
     quit()
@@ -514,6 +604,8 @@ def f():
                                 #print('----------')
                                 availablePoints.remove(p)
                                 #print(iPlate)
+
+
                         plateIndexLocal[int(iPlate)] += 1
 
         for plate in plateListSet:
@@ -730,7 +822,7 @@ Visualization.VisualizeFlow(world.vertices,
 
 ticPlateMerge = time.clock()
 print(len(Simulation.PlateDynamics.Plate.plateDictionary))
-for i in range(8):
+for i in range(20):
     Simulation.PlateDynamics.Plate.CheckForMerge()
     print(len(Simulation.PlateDynamics.Plate.plateDictionary))
 
@@ -823,6 +915,8 @@ print('============================')
 mlab.show()
 quit()
 
+# When comparing two plates a new plate is created. Right now the flow vectors are queried from a kd-tree, instead they
+# could be given as input to the constructor, in a simular manner as is the case with teh vertices.
 
 
 print('a = ', a)
