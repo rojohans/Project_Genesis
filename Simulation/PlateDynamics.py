@@ -129,11 +129,12 @@ class Plate():
             #self.averageFlowVector += vertexFlowAtCenter
 
             #elf.averageFlowVector = (self.averageFlowVector * iVertex + vertexFlowAtCenter) / (iVertex+1)
-            self.averageFlowVector = (self.averageFlowVector * iVertex + vertexFlow) / (iVertex + 1)
-            self.averageFlowVector /= np.sqrt(self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2)
+            #self.averageFlowVector = (self.averageFlowVector * iVertex + vertexFlow) / (iVertex + 1)
+            self.averageFlowVector += vertexFlow
+            #self.averageFlowVector /= np.sqrt(self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2)
 
             #self.averageFlowVector += vertexFlow
-        #self.averageFlowVector /= self.numberOfVertices
+        self.averageFlowVector /= self.numberOfVertices
         #self.averageFlowVector /= np.sqrt( self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2 )
         #print('------------------')
 
@@ -214,6 +215,7 @@ class Plate():
                 combinedPlate.UpdateAverage()
                 combinedPlate.CalculateStress()
 
+                #print(np.max(combinedPlate.stressVector))
                 if np.max(combinedPlate.stressVector) < plate.thickness:
                     #print(key)
                     #print(adjacentID)
