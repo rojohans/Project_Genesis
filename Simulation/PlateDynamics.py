@@ -135,6 +135,7 @@ class Plate():
 
             #self.averageFlowVector += vertexFlow
         self.averageFlowVector /= self.numberOfVertices
+        #self.averageFlowVector /= Utility.VectorDistance(self.averageFlowVector, np.array([0, 0, 0]))
         #self.averageFlowVector /= np.sqrt( self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2 )
         #print('------------------')
 

@@ -289,7 +289,7 @@ if True:
     for key, plate in plateDictionary.items():
         for iPoint in range(plate.numberOfVertices):
 
-            plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 10*np.pi/180)
+            plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 1*np.pi/180)
         break
 
 
@@ -336,10 +336,12 @@ if True:
                                 newFigure=False,
                                 sizeFactor=0.03)
 
+    padding = len(str(100))
+
     tic = time.clock()
-    @mlab.animate
+    @mlab.animate(delay = 100)
     def anim():
-        for i in range(100):
+        for iStep in range(100):
             #s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
             iPlate = -1
             for key, plate in plateDictionary.items():
@@ -353,11 +355,18 @@ if True:
                     #                                                         plate.averageFlowVector, 1 * np.pi / 180)
                     #    #plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
                     #    #                                                     plate.verticesFlow[iPoint, :], 1 * np.pi / 180)
-                    plate.vertices = Utility.RotateAroundAxis(plate.vertices, plate.averageFlowVector, 1 * np.pi / 180)
+                    #print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
+                    avgVecNorm = Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
+                    avgVec = plate.averageFlowVector / avgVecNorm
+                    #plate.vertices = Utility.RotateAroundAxis(plate.vertices, plate.averageFlowVector, 1 * np.pi / 180)
+                    plate.vertices = Utility.RotateAroundAxis(plate.vertices, avgVec, 3*avgVecNorm * np.pi / 180)
+                    for iPoint in range(plate.numberOfVertices):
+                        plate.vertices[iPoint, :] /= Utility.VectorDistance(plate.vertices[iPoint, :], np.array([0, 0, 0]))
                     plate.UpdateFlow()
                     plate.UpdateAverage()
                     #break
             #quit()
+            #print('------------------------------------------------------')
 
             iPlate = -1
             for key, plate in plateDictionary.items():
@@ -379,7 +388,25 @@ if True:
             s = i(world.vertices)
 
             visObj.mayaviMeshObject.mlab_source.scalars = s
+
+
+
+            zeros = '0' * (padding - len(str(iStep)))
+
+            #fileName = Root_Directory.Path() + '/Movies/anim_' + str(i) + '.png'
+            fileName = Root_Directory.Path() + '/Movies/anim' + zeros + str(iStep) + '.png'
+            ## create zeros for padding index positions for organization
+            #zeros = '0' * (padding - len(str(i)))
+            ## concate filename with zero padded index number as suffix
+            #filename = os.path.join(out_path, '{}_{}{}{}'.format(prefix, zeros, i, ext))
+
+            mlab.savefig(filename=fileName)
+            #mlab.savefig(filename = 'test.png')
+
             yield
+
+
+
             #mlab.start_recording() # Look into recording of animations.
             # mlab.move() # Could possibly be used to track the plate.
             #help(mlab.start_recording)
