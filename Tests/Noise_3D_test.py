@@ -286,11 +286,11 @@ if True:
     #Simulation.PlateDynamics.Plate.CheckForMerge()
 
 
-    for key, plate in plateDictionary.items():
-        for iPoint in range(plate.numberOfVertices):
-
-            plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 1*np.pi/180)
-        break
+    #for key, plate in plateDictionary.items():
+    #    for iPoint in range(plate.numberOfVertices):
+    #
+    #        plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 1*np.pi/180)
+    #    break
 
 
     iPlate = -1
@@ -310,6 +310,19 @@ if True:
 
     i = scipy.interpolate.NearestNDInterpolator(v, s)
     s = i(world.vertices)
+
+    #world5 = Templates.Templates.GetIcoSphere(5)
+    world4 = Templates.Templates.IcoSphereSimple(4)
+
+    treeResult = world.kdTree.query(world4.vertices, 1)
+    #print(treeResult[1])
+
+
+    #print(np.shape(plateCollection.xFlow))
+    #print(np.shape(plateCollection.xFlow[treeResult[1]]))
+
+    #quit()
+
     #Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
     #                             faces=world.faces.copy(),
     #                             radius=world.radius.copy(),
@@ -327,21 +340,32 @@ if True:
                                  projectRadiusSpan=[1, 1.03],
                                  interpolatedTriangleColor=True,
                                  colormap='gist_earth',
-                                 randomColormap=True)
-    Visualization.VisualizeFlow(world.vertices,
-                                plateCollection.xFlow,
-                                plateCollection.yFlow,
-                                plateCollection. zFlow,
-                                world.faces,
+                                 randomColormap=True,
+                                 windowSize = (1000, 1000))
+    #Visualization.VisualizeFlow(world.vertices,
+    #                            plateCollection.xFlow,
+    #                            plateCollection.yFlow,
+    #                            plateCollection.zFlow,
+    #                            world.faces,
+    #                            newFigure=False,
+    #                            sizeFactor=0.02)
+    Visualization.VisualizeFlow(1.02*world4.vertices,
+                                plateCollection.xFlow[treeResult[1]],
+                                plateCollection.yFlow[treeResult[1]],
+                                plateCollection.zFlow[treeResult[1]],
+                                world4.faces,
                                 newFigure=False,
-                                sizeFactor=0.03)
+                                sizeFactor=0.08)
 
     padding = len(str(100))
+
+    mlab.view(azimuth=0, elevation=90, distance=4, focalpoint='auto',
+              roll=0, reset_roll=True, figure=visObj.figure)
 
     tic = time.clock()
     @mlab.animate(delay = 100)
     def anim():
-        for iStep in range(100):
+        for iStep in range(200):
             #s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
             iPlate = -1
             for key, plate in plateDictionary.items():

@@ -132,7 +132,8 @@ class VisualizeGlobe():
                  interpolatedTriangleColor = False,
                  colormap = 'gist_earth',
                  newFigure = True,
-                 randomColormap = False):
+                 randomColormap = False,
+                 windowSize = (700, 700)):
         # ------------------------------------------------------------------------------------------
         # Creates a triangular mesh object visualizing a globe given the inputs. The surface can be projected onto a sphere
         # or drawn as an irregular sphere (different radius for different vertices).
@@ -144,7 +145,7 @@ class VisualizeGlobe():
         # ------------------------------------------------------------------------------------------
 
         if newFigure:
-            self.figure = mlab.figure()
+            self.figure = mlab.figure(size = windowSize)
             self.figure.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
 
         if interpolatedTriangleColor:
