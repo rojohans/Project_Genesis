@@ -94,8 +94,10 @@ class Plate():
 
             if iVertex == 0:
                 self.verticesFlow = vertexFlow
+                #self.nearestPointIndex = [queryResult]
             else:
                 self.verticesFlow = np.append(self.verticesFlow, vertexFlow, axis = 0)
+                #self.nearestPointIndex.append(queryResult)
         #print(self.verticesFlow)
 
     def UpdateAverage(self):
@@ -145,6 +147,26 @@ class Plate():
             vectorAtCenter = self.verticesFlow[iVertex, :]
             #vectorAtCenter = Utility.RotateVector(vertex, self.centerPoint, self.verticesFlow[iVertex, :]) ------------ not done when rotation axises are used.
             self.stressVector[iVertex] = Utility.VectorDistance(self.averageFlowVector, vectorAtCenter)
+
+    def Rotate(self,
+               axisOfRotation = None,
+               angleOfRotation = None,
+               angleScaling = 1):
+        avgVecNorm = None
+        if axisOfRotation is None:
+            avgVecNorm = Utility.VectorDistance(self.averageFlowVector, np.array([0, 0, 0]))
+            axisOfRotation = self.averageFlowVector / avgVecNorm
+        if angleOfRotation is None:
+            if avgVecNorm is not None:
+                angleOfRotation = angleScaling * avgVecNorm * np.pi/180
+            else:
+                angleOfRotation = angleScaling * Utility.VectorDistance(axisOfRotation, np.array([0, 0, 0])) * np.pi/180
+        self.vertices = Utility.RotateAroundAxis(self.vertices, axisOfRotation, angleOfRotation)
+
+    def NormalizeVertices(self):
+        # This might be needed if the vertices drifts away from the unit sphere due to the rotation matrix.
+        for iPoint in range(self.numberOfVertices):
+            self.vertices[iPoint, :] /= Utility.VectorDistance(self.vertices[iPoint, :], np.array([0, 0, 0]))
 
     @classmethod
     def UpdateKDTree(cls):

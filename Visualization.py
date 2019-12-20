@@ -133,7 +133,8 @@ class VisualizeGlobe():
                  colormap = 'gist_earth',
                  newFigure = True,
                  randomColormap = False,
-                 windowSize = (700, 700)):
+                 windowSize = [700, 700],
+                 squaredWindow = False):
         # ------------------------------------------------------------------------------------------
         # Creates a triangular mesh object visualizing a globe given the inputs. The surface can be projected onto a sphere
         # or drawn as an irregular sphere (different radius for different vertices).
@@ -142,7 +143,11 @@ class VisualizeGlobe():
         # interpolatedTriangleColor: If True will give triangles with varying color thoughout the triangle. The color will
         #                            be interpolated between the edge scalar values. If False will give triangles with a
         #                            single color. The color will be the mean of the edge scalar values.
+        # squaredWindow : If true will make the mayavi window
         # ------------------------------------------------------------------------------------------
+
+        if squaredWindow:
+            windowSize = [np.min(windowSize), np.min(windowSize)]
 
         if newFigure:
             self.figure = mlab.figure(size = windowSize)

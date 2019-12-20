@@ -254,6 +254,10 @@ if False:
 
 if True:
     import Root_Directory
+    import System_Info
+
+    saveScreenshots = False
+
     fileName = Root_Directory.Path() + '/Templates/Plate_Collection_' + str(1.2) + '.pkl'
     #fileName = Root_Directory.Path() + '/Templates/Plate_Collection_1_2' + '.pkl'
     fileToRead = open(fileName, 'rb')
@@ -341,7 +345,8 @@ if True:
                                  interpolatedTriangleColor=True,
                                  colormap='gist_earth',
                                  randomColormap=True,
-                                 windowSize = (1000, 1000))
+                                 windowSize = System_Info.SCREEN_RESOLUTION,
+                                 squaredWindow = True)
     #Visualization.VisualizeFlow(world.vertices,
     #                            plateCollection.xFlow,
     #                            plateCollection.yFlow,
@@ -362,10 +367,9 @@ if True:
     mlab.view(azimuth=0, elevation=90, distance=4, focalpoint='auto',
               roll=0, reset_roll=True, figure=visObj.figure)
 
-    tic = time.clock()
-    @mlab.animate(delay = 100)
+    #@mlab.animate(delay = 100)
     def anim():
-        for iStep in range(200):
+        for iStep in range(10):
             #s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
             iPlate = -1
             for key, plate in plateDictionary.items():
@@ -380,12 +384,15 @@ if True:
                     #    #plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
                     #    #                                                     plate.verticesFlow[iPoint, :], 1 * np.pi / 180)
                     #print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
-                    avgVecNorm = Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
-                    avgVec = plate.averageFlowVector / avgVecNorm
+                    # avgVecNorm = Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
+                    # avgVec = plate.averageFlowVector / avgVecNorm
                     #plate.vertices = Utility.RotateAroundAxis(plate.vertices, plate.averageFlowVector, 1 * np.pi / 180)
-                    plate.vertices = Utility.RotateAroundAxis(plate.vertices, avgVec, 3*avgVecNorm * np.pi / 180)
-                    for iPoint in range(plate.numberOfVertices):
-                        plate.vertices[iPoint, :] /= Utility.VectorDistance(plate.vertices[iPoint, :], np.array([0, 0, 0]))
+                    # plate.vertices = Utility.RotateAroundAxis(plate.vertices, avgVec, 3*avgVecNorm * np.pi / 180)
+                    # for iPoint in range(plate.numberOfVertices):
+                    #     plate.vertices[iPoint, :] /= Utility.VectorDistance(plate.vertices[iPoint, :], np.array([0, 0, 0]))
+
+                    plate.Rotate(angleScaling = 3)
+                    #plate.NormalizeVertices() # Unsure if this i needed.
                     plate.UpdateFlow()
                     plate.UpdateAverage()
                     #break
@@ -405,29 +412,23 @@ if True:
                 #break
 
                 # plate.ID
+
             v = np.append(v, 0.95 * world.vertices, axis=0)
             s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis=0)
 
             i = scipy.interpolate.NearestNDInterpolator(v, s)
             s = i(world.vertices)
 
-            visObj.mayaviMeshObject.mlab_source.scalars = s
+            #visObj.mayaviMeshObject.mlab_source.scalars = s
 
 
+            # Saves a screenshot as a .png file.
+            if saveScreenshots:
+                zeros = '0' * (padding - len(str(iStep)))
+                fileName = Root_Directory.Path() + '/Movies/anim' + zeros + str(iStep) + '.png'
+                mlab.savefig(filename=fileName)
 
-            zeros = '0' * (padding - len(str(iStep)))
-
-            #fileName = Root_Directory.Path() + '/Movies/anim_' + str(i) + '.png'
-            fileName = Root_Directory.Path() + '/Movies/anim' + zeros + str(iStep) + '.png'
-            ## create zeros for padding index positions for organization
-            #zeros = '0' * (padding - len(str(i)))
-            ## concate filename with zero padded index number as suffix
-            #filename = os.path.join(out_path, '{}_{}{}{}'.format(prefix, zeros, i, ext))
-
-            mlab.savefig(filename=fileName)
-            #mlab.savefig(filename = 'test.png')
-
-            yield
+            #yield
 
 
 
@@ -436,9 +437,17 @@ if True:
             #help(mlab.start_recording)
             #quit()
 
+    import cProfile
+    pr = cProfile.Profile()
+    pr.enable()
+
+    # Call anim() here
     anim()
-    toc = time.clock()
-    print('time in seconds : ', toc-tic)
+    pr.disable()
+    pr.print_stats(2)
+    quit()
+
+    anim()
     mlab.show()
     quit()
 
