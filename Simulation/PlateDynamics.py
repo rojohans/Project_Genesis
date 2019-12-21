@@ -75,7 +75,27 @@ class Plate():
                     self.adjacentPlateIDs.append(int(adjacentID[0]))
         self.adjacentPlateIDs.sort()
 
+    def UpdateNearestPointIndex(self):
+        #
+        # This method should probably be included in the initializer or Plate.AddVertice()
+        #
+        for iVertex, vertex in enumerate(self.vertices):
+            queryResult = self.worldKDTree.query(vertex, 2)
+            #print(queryResult)
+            #quit()
+
+            if iVertex == 0:
+                self.nearestPointIndex = [queryResult[1][0]]
+                self.secondNearestPointIndex = [queryResult[1][1]]
+            else:
+                self.nearestPointIndex.append(queryResult[1][0])
+                self.secondNearestPointIndex.append(queryResult[1][1])
+        #print(self.nearestPointIndex)
+
+
     def UpdateFlow(self):
+        #print('hej')
+        #print('================================================================================')
         for iVertex, vertex in enumerate(self.vertices):
 
             #phi, theta, radius = Utility.CaartesianToSpherical(vertex)
@@ -84,10 +104,27 @@ class Plate():
             # Theta unit vector
             #thetaVector = np.array([ -np.cos(phi) * np.sin(theta), -np.sin(phi) * np.sin(theta), np.cos(theta)])
 
+            '''
+            nearestPoint = self.nearestPointIndex[iVertex]
+            nearestPointsID = self.world.neighbours.IDList[nearestPoint][0]
 
+            nearestPointsVerts = self.world.vertices[nearestPointsID, :]
+            #print(nearestPointsID)
+            #print(nearestPointsVerts)
 
-            queryResult = self.worldKDTree.query(vertex)
-            vertexFlow = self.worldFlowVectors[queryResult[1]:queryResult[1]+1, :]
+            minDist = 1000
+            minID = None
+
+            for iNear, vertexNear in enumerate(nearestPointsVerts):
+                dist = Utility.VectorDistance(vertex, vertexNear)
+                if dist < minDist:
+                    minDist = dist
+                    minID = iNear
+            vertexFlow = self.worldFlowVectors[minID:minID+1, :]
+
+            '''
+            queryResult = self.worldKDTree.query(vertex, 2)
+            vertexFlow = self.worldFlowVectors[queryResult[1][0]:queryResult[1][0]+1, :]
 
             #vertexFlow = np.array([np.dot(vertexFlow, thetaVector)[0], np.dot(vertexFlow, phiVector)[0], 0])
             #vertexFlow = np.reshape(vertexFlow, (1, 3))
@@ -98,6 +135,9 @@ class Plate():
             else:
                 self.verticesFlow = np.append(self.verticesFlow, vertexFlow, axis = 0)
                 #self.nearestPointIndex.append(queryResult)
+            self.nearestPointIndex[iVertex] = queryResult[1][0]
+            self.secondNearestPointIndex[iVertex] = queryResult[1][1]
+
         #print(self.verticesFlow)
 
     def UpdateAverage(self):

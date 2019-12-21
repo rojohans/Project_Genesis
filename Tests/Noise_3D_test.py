@@ -42,7 +42,6 @@ world = Templates.Templates.GetIcoSphere(6) # use 4 when testing tectonic plates
 #world = Templates.Templates.IcoSphereSimple(6)
 
 
-
 # 0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
 # Consider saving the IcoSphere data to a .csv file instead of a .pkl file. This could improve load times.
 # The Neighbour object within the ico sphere takes up considerable amounts of memory. Consider just calculating the
@@ -283,6 +282,7 @@ if True:
                                              flowRotationVectors,
                                              world)
     for key, plate in plateDictionary.items():
+        plate.UpdateNearestPointIndex()
         plate.UpdateFlow()
         plate.UpdateAverage()
     #    print(plate.averageFlowVector)
@@ -300,16 +300,18 @@ if True:
     iPlate = -1
     for key, plate in plateDictionary.items():
         iPlate += 1
-        if iPlate == 0:
-            v = plate.vertices
-            s = plate.ID * np.ones((plate.numberOfVertices, 1))
+        if iPlate < 2:
+            if iPlate == 0:
+                v = plate.vertices
+                s = plate.ID * np.ones((plate.numberOfVertices, 1))
+            else:
+                v = np.append(v, plate.vertices, axis=0)
+                s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
         else:
-            v = np.append(v, plate.vertices, axis=0)
-            s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
-        break
+            break
 
         # plate.ID
-    v = np.append(v, 0.95*world.vertices, axis = 0)
+    v = np.append(v, 0.98*world.vertices, axis = 0)
     s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis = 0)
 
     i = scipy.interpolate.NearestNDInterpolator(v, s)
@@ -320,6 +322,36 @@ if True:
 
     treeResult = world.kdTree.query(world4.vertices, 1)
     #print(treeResult[1])
+
+
+    plateTriangles = []
+    iPlate = -1
+    for key, plate in plateDictionary.items():
+        iPlate += 1
+        if iPlate < 2:
+            #plateVerts.append(plate.vertices)
+            if iPlate == 0:
+                plateVerts = plate.vertices
+            else:
+                np.append(plateVerts, plate.vertices, axis = 0)
+
+        else:
+            break
+
+    visObj = Visualization.VisualizeGlobe(vertices=plateVerts,
+                                          faces=world.faces.copy(),
+                                          radius=world.radius.copy(),
+                                          scalars=s,
+                                          projectTopography=True,
+                                          projectRadiusSpan=[1, 1.03],
+                                          interpolatedTriangleColor=True,
+                                          colormap='gist_earth',
+                                          randomColormap=True,
+                                          windowSize=System_Info.SCREEN_RESOLUTION,
+                                          squaredWindow=True)
+    mlab.show()
+    quit()
+
 
 
     #print(np.shape(plateCollection.xFlow))
@@ -362,14 +394,17 @@ if True:
                                 newFigure=False,
                                 sizeFactor=0.08)
 
+    mlab.show()
+    quit()
+
     padding = len(str(100))
 
     mlab.view(azimuth=0, elevation=90, distance=4, focalpoint='auto',
               roll=0, reset_roll=True, figure=visObj.figure)
 
-    #@mlab.animate(delay = 100)
+    @mlab.animate(delay = 100)
     def anim():
-        for iStep in range(10):
+        for iStep in range(100):
             #s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
             iPlate = -1
             for key, plate in plateDictionary.items():
@@ -396,9 +431,12 @@ if True:
                     plate.UpdateFlow()
                     plate.UpdateAverage()
                     #break
+                else:
+                    break
             #quit()
             #print('------------------------------------------------------')
 
+            '''
             iPlate = -1
             for key, plate in plateDictionary.items():
                 iPlate += 1
@@ -409,17 +447,29 @@ if True:
                     else:
                         v = np.append(v, plate.vertices, axis=0)
                         s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
-                #break
+                else:
+                    break
 
                 # plate.ID
-
-            v = np.append(v, 0.95 * world.vertices, axis=0)
+            v = np.append(v, 0.98 * world.vertices, axis=0)
             s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis=0)
 
             i = scipy.interpolate.NearestNDInterpolator(v, s)
             s = i(world.vertices)
+            '''
+            s = np.zeros((world.numberOfvertices, 1))
+            iPlate = -1
+            for key, plate in plateDictionary.items():
+                iPlate += 1
+                if iPlate < 2:
+                    for iPoint in range(plate.numberOfVertices):
+                        s[plate.nearestPointIndex[iPoint]] = plate.ID
+                        s[plate.secondNearestPointIndex[iPoint]] = plate.ID
+                else:
+                    break
 
-            #visObj.mayaviMeshObject.mlab_source.scalars = s
+
+            visObj.mayaviMeshObject.mlab_source.scalars = s
 
 
             # Saves a screenshot as a .png file.
@@ -428,7 +478,7 @@ if True:
                 fileName = Root_Directory.Path() + '/Movies/anim' + zeros + str(iStep) + '.png'
                 mlab.savefig(filename=fileName)
 
-            #yield
+            yield
 
 
 
@@ -437,6 +487,7 @@ if True:
             #help(mlab.start_recording)
             #quit()
 
+    '''
     import cProfile
     pr = cProfile.Profile()
     pr.enable()
@@ -446,7 +497,7 @@ if True:
     pr.disable()
     pr.print_stats(2)
     quit()
-
+    '''
     anim()
     mlab.show()
     quit()
