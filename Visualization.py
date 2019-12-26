@@ -121,8 +121,18 @@ class MayaviWindow(HasTraits):
         mlab.surf(np.zeros([2, 2]), figure = self.updatedScene.mayavi_scene, opacity = 0) # Dummy surface
         mlab.text(0.6, 0.9, 'Eroded', width=0.4)
 
+class MayaviWindow():
+    def __init__(self,
+                 windowSize=[700, 700],
+                 squaredWindow=False):
+        if squaredWindow:
+            windowSize = [np.min(windowSize), np.min(windowSize)]
+        self.figure = mlab.figure(size = windowSize)
+        self.figure.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+
 class VisualizeGlobe():
     def __init__(self,
+                 figure,
                  vertices,
                  faces,
                  radius,
@@ -131,10 +141,7 @@ class VisualizeGlobe():
                  projectRadiusSpan = [1, 1.1],
                  interpolatedTriangleColor = False,
                  colormap = 'gist_earth',
-                 newFigure = True,
-                 randomColormap = False,
-                 windowSize = [700, 700],
-                 squaredWindow = False):
+                 customColormap = None):
         # ------------------------------------------------------------------------------------------
         # Creates a triangular mesh object visualizing a globe given the inputs. The surface can be projected onto a sphere
         # or drawn as an irregular sphere (different radius for different vertices).
@@ -145,14 +152,7 @@ class VisualizeGlobe():
         #                            single color. The color will be the mean of the edge scalar values.
         # squaredWindow : If true will make the mayavi window
         # ------------------------------------------------------------------------------------------
-
-        if squaredWindow:
-            windowSize = [np.min(windowSize), np.min(windowSize)]
-
-        if newFigure:
-            self.figure = mlab.figure(size = windowSize)
-            self.figure.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
-
+        self.figure = figure
         if interpolatedTriangleColor:
             if projectTopography:
                 self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * 0.99,
@@ -213,10 +213,9 @@ class VisualizeGlobe():
 
 
 
-        if randomColormap is True:
+        if customColormap is not None:
             lut = self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
-            lut[:, 0:3] =  np.random.randint(0, 255, (256, 3))
-            lut[0, 0:3] = 0
+            lut[:, 0:3] = customColormap
             self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
 
 

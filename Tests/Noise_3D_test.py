@@ -265,6 +265,7 @@ if True:
 
     plateDictionary = plateCollection.plateList
 
+    world.kdTree = scipy.spatial.cKDTree(world.vertices)
 
     xFlow = np.reshape(plateCollection.xFlow, (world.numberOfvertices, 1))
     yFlow = np.reshape(plateCollection.yFlow, (world.numberOfvertices, 1))
@@ -282,6 +283,7 @@ if True:
                                              flowRotationVectors,
                                              world)
     for key, plate in plateDictionary.items():
+        plate.MeshTriangulation()
         plate.UpdateNearestPointIndex()
         plate.UpdateFlow()
         plate.UpdateAverage()
@@ -296,69 +298,203 @@ if True:
     #        plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 1*np.pi/180)
     #    break
 
-
-    iPlate = -1
-    for key, plate in plateDictionary.items():
-        iPlate += 1
-        if iPlate < 2:
-            if iPlate == 0:
-                v = plate.vertices
-                s = plate.ID * np.ones((plate.numberOfVertices, 1))
-            else:
-                v = np.append(v, plate.vertices, axis=0)
-                s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
-        else:
-            break
-
-        # plate.ID
-    v = np.append(v, 0.98*world.vertices, axis = 0)
-    s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis = 0)
-
-    i = scipy.interpolate.NearestNDInterpolator(v, s)
-    s = i(world.vertices)
-
-    #world5 = Templates.Templates.GetIcoSphere(5)
     world4 = Templates.Templates.IcoSphereSimple(4)
-
     treeResult = world.kdTree.query(world4.vertices, 1)
-    #print(treeResult[1])
+
+    if True:
+        iPlate = -1
+        for key, plate in plateDictionary.items():
+            iPlate += 1
+            if iPlate < 2:
+                if iPlate == 0:
+                    v = plate.vertices
+                    s = plate.ID * np.ones((plate.numberOfVertices, 1))
+                else:
+                    v = np.append(v, plate.vertices, axis=0)
+                    s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
+            else:
+                break
+
+            # plate.ID
+        v = np.append(v, 0.98*world.vertices, axis = 0)
+        s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis = 0)
+
+        i = scipy.interpolate.NearestNDInterpolator(v, s)
+        s = i(world.vertices)
+
+        nPoints = 0
+        iPlate = -1
+        for key, plate in plateDictionary.items():
+            iPlate += 1
+            if iPlate < 100:
+                if plate.numberOfVertices > 4:
+                    #plateVerts.append(plate.vertices)
+                    if iPlate == 0:
+                        plateVerts = plate.vertices
+                        plateFaces = plate.triangles
+                        meshScalarsID = plate.ID * np.ones((plate.numberOfVertices, 1))
+                        meshScalarsNumber = iPlate * np.ones((plate.numberOfVertices, 1))
+                        #meshScalarsNumber = plate.ID * np.ones((plate.numberOfVertices, 1))
+                    else:
+                        plateVerts = np.append(plateVerts, plate.vertices, axis = 0)
+                        plateFaces = np.append(plateFaces, plate.triangles+nPoints, axis = 0)
+                        meshScalarsID = np.append(meshScalarsID, plate.ID * np.ones((plate.numberOfVertices, 1)), axis = 0)
+                        meshScalarsNumber = np.append(meshScalarsNumber, iPlate * np.ones((plate.numberOfVertices, 1)), axis=0)
+                        #meshScalarsNumber = np.append(meshScalarsNumber, plate.ID * np.ones((plate.numberOfVertices, 1)),axis=0)
+                    nPoints += plate.numberOfVertices
+            else:
+                break
+        mayaviWindow = Visualization.MayaviWindow(windowSize=System_Info.SCREEN_RESOLUTION,
+                                                  squaredWindow=True)
+        #mlab.points3d(plateVerts[:, 0], plateVerts[:, 1], plateVerts[:, 2], scale_factor = 0.01)
+        visObjBlack = Visualization.VisualizeGlobe(vertices=0.98*world4.vertices.copy(),
+                                              faces=world4.faces.copy(),
+                                              radius=world4.radius.copy(),
+                                              scalars=world4.radius.copy(),
+                                              projectTopography=True,
+                                              projectRadiusSpan=[1, 1.03],
+                                              interpolatedTriangleColor=True,
+                                              colormap='gist_earth',
+                                              figure = mayaviWindow.figure)
+        customColorMap = np.random.randint(0, 255, (256, 3))
+
+        #customColorMap[0, 0:3] = 0
+
+        meshScalarsNumber /= np.max(meshScalarsNumber)
+        meshScalarsNumber *= 255
+        meshScalarsNumber = np.round(meshScalarsNumber)
+        #print(meshScalarsNumber)
+
+        pointColor = np.zeros((np.size(plateVerts, 0), 3))
+        for iLoop, loopScalar in enumerate(meshScalarsNumber):
+            pointColor[iLoop, :] = customColorMap[int(loopScalar), :]
+        pointColor /= 255
+
+        '''
+        platePointVis = mlab.points3d(plateVerts[:, 0], plateVerts[:, 1], plateVerts[:, 2], scale_factor = 0.01)
+        platePointVis.glyph.scale_mode = 'scale_by_vector'
+        platePointVis.mlab_source.dataset.point_data.scalars = meshScalarsNumber[:, 0]/255
+        lut = platePointVis.module_manager.scalar_lut_manager.lut.table.to_array()
+        lut[:, 0:3] = customColorMap
+        platePointVis.module_manager.scalar_lut_manager.lut.table = lut
+        '''
+
+        visObj = Visualization.VisualizeGlobe(vertices=plateVerts,
+                                              faces=plateFaces,
+                                              radius=np.ones((nPoints, 1)),
+                                              scalars=meshScalarsNumber,
+                                              projectTopography=True,
+                                              projectRadiusSpan=[1, 1.03],
+                                              interpolatedTriangleColor=True,
+                                              colormap='gist_earth',
+                                              customColormap=customColorMap,
+                                              figure = mayaviWindow.figure)
 
 
-    plateTriangles = []
+        cursor3d = mlab.points3d(0., 0., 0.,
+                                 color=(1, 1, 1),
+                                 scale_factor=0.025,)
+        cursorLine = mlab.plot3d([0, 0.1], [0, 0.1], [0, 0.1])
+        textObj = mlab.text(0.8, 0.85, '-', width = 0.2)
+        # The textobject should be rotated in respect to the picked point and the camera, thusly locking it in place from
+        # the perspective of the camera. The textObject could also be created as a separate panel.
+        def picker_callback(picker_obj):
+            picked = picker_obj.actors
+
+            #print(picker_obj)
+            print('--------------')
+
+            print(picker_obj.pick_position)
+            queryResult = world.kdTree.query(picker_obj.pick_position)
+            #print(queryResult)
+            vertexID = queryResult[1]
+            pickedPlateID = meshScalarsID[vertexID][0]
+            #print(pickedPlateID)
+            pickedPlate = plateDictionary[pickedPlateID]
+            averageStress = np.mean(pickedPlate.stressVector)
+            maximumStress = np.max(pickedPlate.stressVector)
+            tmpStr = 'Plate ID          : ' + str(int(pickedPlateID)) + \
+                     '\n' + '# points          : ' + str(pickedPlate.numberOfVertices) + \
+                     '\n' + 'mean(Stress) : ' + str(round(averageStress, 3)) + \
+                     '\n' + 'Max(stress)    : ' + str(round(maximumStress, 3))
+            #cursor3d.mlab_source.reset(x=plateVerts[vertexID, 0],
+            #                           y=plateVerts[vertexID, 1],
+            #                           z=plateVerts[vertexID, 2])
+            r = picker_obj.pick_position
+            cursorLine.mlab_source.trait_set(x = [0, 1.5*r[0]],
+                                             y = [0, 1.5*r[1]],
+                                             z = [0, 1.5*r[2]])
+            #cursorLine.mlab_source.trait_set(x = [0, 1.5*r[0]])
+            #cursor3d.mlab_source.reset(x=r[0],
+            #                           y=r[1],
+            #                           z=r[2])
+            textObj.text = tmpStr
+            '''
+            #if mesh.actor.actor._vtk_obj in [o._vtk_obj for o in picked]:
+            if visObj.mayaviMeshObject.actor.actor._vtk_obj in [o._vtk_obj for o in picked]:
+                # m.mlab_source.points is the points array underlying the vtk
+                # dataset. GetPointId return the index in this array.
+
+                #print(picker_obj.point_id)
+                #print('---------------------')
+                #print('Mesh ID : ', picker_obj.point_id)
+                cursor3d.mlab_source.reset(x=plateVerts[picker_obj.point_id, 0],
+                                           y=plateVerts[picker_obj.point_id, 1],
+                                           z=plateVerts[picker_obj.point_id, 2])
+                #pickedPlateID = meshScalarsID[picker_obj.point_id][0]
+                pickedPlateID = meshScalarsID[picker_obj.point_id][0]
+                pickedPlate = plateDictionary[pickedPlateID]
+                averageStress = np.mean(pickedPlate.stressVector)
+                maximumStress = np.max(pickedPlate.stressVector)
+
+                tmpStr =        'Plate ID          : ' + str(int(pickedPlateID)) +\
+                         '\n' + '# points          : ' + str(pickedPlate.numberOfVertices) +\
+                         '\n' + 'mean(Stress) : ' + str(round(averageStress, 3)) +\
+                         '\n' + 'Max(stress)    : ' + str(round(maximumStress, 3))
+                textObj.text = tmpStr
+            '''
+
+        pickerObj = mayaviWindow.figure.on_mouse_pick(picker_callback)
+        pickerObj.tolerance = 0.01
+
+        print('-----VISUALISATION DONE-----')
+        mlab.show()
+        quit()
+
+
+
+
+
+    nPoints = 0
     iPlate = -1
     for key, plate in plateDictionary.items():
         iPlate += 1
-        if iPlate < 2:
-            #plateVerts.append(plate.vertices)
-            if iPlate == 0:
-                plateVerts = plate.vertices
-            else:
-                np.append(plateVerts, plate.vertices, axis = 0)
-
+        if iPlate < 10:
+            if plate.numberOfVertices > 4:
+                # plateVerts.append(plate.vertices)
+                if iPlate == 0:
+                    plateVerts = plate.vertices
+                    plateFaces = plate.triangles
+                    meshScalarsNumber = plate.ID * np.ones((plate.numberOfVertices, 1))
+                else:
+                    plateVerts = np.append(plateVerts, plate.vertices, axis=0)
+                    plateFaces = np.append(plateFaces, plate.triangles + nPoints, axis=0)
+                    meshScalarsNumber = np.append(meshScalarsNumber, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
+                nPoints += plate.numberOfVertices
         else:
             break
-
-    visObj = Visualization.VisualizeGlobe(vertices=plateVerts,
-                                          faces=world.faces.copy(),
-                                          radius=world.radius.copy(),
-                                          scalars=s,
-                                          projectTopography=True,
-                                          projectRadiusSpan=[1, 1.03],
-                                          interpolatedTriangleColor=True,
-                                          colormap='gist_earth',
-                                          randomColormap=True,
-                                          windowSize=System_Info.SCREEN_RESOLUTION,
-                                          squaredWindow=True)
-    mlab.show()
-    quit()
-
-
-
-    #print(np.shape(plateCollection.xFlow))
-    #print(np.shape(plateCollection.xFlow[treeResult[1]]))
-
-    #quit()
-
+    mayaviWindow = Visualization.MayaviWindow(windowSize = System_Info.SCREEN_RESOLUTION,
+                                              squaredWindow = True)
+    visObj = Visualization.VisualizeGlobe(figure = mayaviWindow.figure,
+                                          vertices = plateVerts,
+                                          faces = plateFaces,
+                                          radius = np.ones((nPoints, 1)),
+                                          scalars = meshScalarsNumber,
+                                          projectTopography = True,
+                                          projectRadiusSpan = [1, 1.03],
+                                          interpolatedTriangleColor = True,
+                                          colormap = 'gist_earth',
+                                          randomColormap = True)
     #Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
     #                             faces=world.faces.copy(),
     #                             radius=world.radius.copy(),
@@ -368,17 +504,17 @@ if True:
     #                             interpolatedTriangleColor=True,
     #                             colormap='gist_earth',
     #                             randomColormap=True)
-    visObj = Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
-                                 faces=world.faces.copy(),
-                                 radius=world.radius.copy(),
-                                 scalars=s,
-                                 projectTopography=True,
-                                 projectRadiusSpan=[1, 1.03],
-                                 interpolatedTriangleColor=True,
-                                 colormap='gist_earth',
-                                 randomColormap=True,
-                                 windowSize = System_Info.SCREEN_RESOLUTION,
-                                 squaredWindow = True)
+    #visObj = Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
+    #                             faces=world.faces.copy(),
+    #                             radius=world.radius.copy(),
+    #                             scalars=s,
+    #                             projectTopography=True,
+    #                             projectRadiusSpan=[1, 1.03],
+    #                             interpolatedTriangleColor=True,
+    #                             colormap='gist_earth',
+    #                             randomColormap=True,
+    #                             windowSize = System_Info.SCREEN_RESOLUTION,
+    #                             squaredWindow = True)
     #Visualization.VisualizeFlow(world.vertices,
     #                            plateCollection.xFlow,
     #                            plateCollection.yFlow,
@@ -394,22 +530,24 @@ if True:
                                 newFigure=False,
                                 sizeFactor=0.08)
 
-    mlab.show()
-    quit()
+
+
+    #mlab.show()
+    #quit()
 
     padding = len(str(100))
 
     mlab.view(azimuth=0, elevation=90, distance=4, focalpoint='auto',
-              roll=0, reset_roll=True, figure=visObj.figure)
+              roll=0, reset_roll=True, figure=mayaviWindow.figure)
 
-    @mlab.animate(delay = 100)
+    @mlab.animate(delay = 10)
     def anim():
-        for iStep in range(100):
+        for iStep in range(1000):
             #s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
             iPlate = -1
             for key, plate in plateDictionary.items():
                 iPlate += 1
-                if iPlate < 2:
+                if iPlate < 10:
                     #print(plate.averageFlowVector)
                     #print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
                     #plate.averageFlowVector /= Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
@@ -461,15 +599,22 @@ if True:
             iPlate = -1
             for key, plate in plateDictionary.items():
                 iPlate += 1
-                if iPlate < 2:
+                if iPlate < 10:
                     for iPoint in range(plate.numberOfVertices):
                         s[plate.nearestPointIndex[iPoint]] = plate.ID
                         s[plate.secondNearestPointIndex[iPoint]] = plate.ID
+                    if iPlate == 0:
+                        plateVerts = plate.vertices
+                    else:
+                        plateVerts = np.append(plateVerts, plate.vertices, axis = 0)
                 else:
                     break
 
 
-            visObj.mayaviMeshObject.mlab_source.scalars = s
+            #visObj.mayaviMeshObject.mlab_source.scalars = s
+            visObj.mayaviMeshObject.mlab_source.x = plateVerts[:, 0]
+            visObj.mayaviMeshObject.mlab_source.y = plateVerts[:, 1]
+            visObj.mayaviMeshObject.mlab_source.z = plateVerts[:, 2]
 
 
             # Saves a screenshot as a .png file.
@@ -498,6 +643,7 @@ if True:
     pr.print_stats(2)
     quit()
     '''
+
     anim()
     mlab.show()
     quit()

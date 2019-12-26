@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import spatial
 import Utility
+import scipy.spatial
 
 class Plate():
     numberOfPlatesCreated = 0 # Used for assigning a unique ID to each plate.
@@ -94,65 +95,40 @@ class Plate():
 
 
     def UpdateFlow(self):
-        #print('hej')
-        #print('================================================================================')
-        for iVertex, vertex in enumerate(self.vertices):
+        if False:
+            for iVertex, vertex in enumerate(self.vertices):
+                #queryResult = self.worldKDTree.query(vertex, 1)
+                queryResult = self.worldKDTree.query(vertex, 1, distance_upper_bound = 1.5*self.world.shortestDistance)
+                vertexFlow = self.worldFlowVectors[queryResult[1]:queryResult[1]+1, :]
 
-            #phi, theta, radius = Utility.CaartesianToSpherical(vertex)
-            # Phi unit vector
-            #phiVector = np.array([-np.sin(phi), np.cos(phi), 0])
-            # Theta unit vector
-            #thetaVector = np.array([ -np.cos(phi) * np.sin(theta), -np.sin(phi) * np.sin(theta), np.cos(theta)])
-
-            '''
-            nearestPoint = self.nearestPointIndex[iVertex]
-            nearestPointsID = self.world.neighbours.IDList[nearestPoint][0]
-
-            nearestPointsVerts = self.world.vertices[nearestPointsID, :]
-            #print(nearestPointsID)
-            #print(nearestPointsVerts)
-
-            minDist = 1000
-            minID = None
-
-            for iNear, vertexNear in enumerate(nearestPointsVerts):
-                dist = Utility.VectorDistance(vertex, vertexNear)
-                if dist < minDist:
-                    minDist = dist
-                    minID = iNear
-            vertexFlow = self.worldFlowVectors[minID:minID+1, :]
-
-            '''
-            queryResult = self.worldKDTree.query(vertex, 2)
-            vertexFlow = self.worldFlowVectors[queryResult[1][0]:queryResult[1][0]+1, :]
-
-            #vertexFlow = np.array([np.dot(vertexFlow, thetaVector)[0], np.dot(vertexFlow, phiVector)[0], 0])
-            #vertexFlow = np.reshape(vertexFlow, (1, 3))
-
-            if iVertex == 0:
-                self.verticesFlow = vertexFlow
-                #self.nearestPointIndex = [queryResult]
-            else:
-                self.verticesFlow = np.append(self.verticesFlow, vertexFlow, axis = 0)
-                #self.nearestPointIndex.append(queryResult)
-            self.nearestPointIndex[iVertex] = queryResult[1][0]
-            self.secondNearestPointIndex[iVertex] = queryResult[1][1]
-
-        #print(self.verticesFlow)
+                if iVertex == 0:
+                    self.verticesFlow = vertexFlow
+                else:
+                    self.verticesFlow = np.append(self.verticesFlow, vertexFlow, axis = 0)
+        else:
+            queryResult = self.world.kdTree.query(self.vertices)
+            #print(queryResult[1])
+            self.verticesFlow = self.worldFlowVectors[queryResult[1], :]
+            #quit()
 
     def UpdateAverage(self):
         #
         # Updates the center point and the average flow vector.
         #
 
+        '''
         self.centerPoint = np.array([0, 0, 0])
         for iVertex, vertex in enumerate(self.vertices):
             self.centerPoint = (self.centerPoint * iVertex + vertex) / (iVertex + 1)
             self.centerPoint /= np.sqrt(self.centerPoint[0] ** 2 + self.centerPoint[1] ** 2 + self.centerPoint[2] ** 2)
+        '''
+        self.centerPoint = np.mean(self.vertices, axis = 0)
+        self.centerPoint /= Utility.VectorDistance(self.centerPoint, np.array([0, 0, 0]))
+
         #self.centerPoint = np.mean(self.vertices, axis=0)
         #r = np.sqrt(self.centerPoint[0] ** 2 + self.centerPoint[1] ** 2 + self.centerPoint[2] ** 2)
         #self.centerPoint /= r
-
+        '''
         self.averageFlowVector = np.array([0, 0, 0], dtype = 'float64')
 
         for iVertex, vertex in enumerate(self.vertices):
@@ -176,7 +152,9 @@ class Plate():
             #self.averageFlowVector /= np.sqrt(self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2)
 
             #self.averageFlowVector += vertexFlow
-        self.averageFlowVector /= self.numberOfVertices
+        '''
+        self.averageFlowVector = np.mean(self.verticesFlow, axis = 0)
+        #self.averageFlowVector /= self.numberOfVertices
         #self.averageFlowVector /= Utility.VectorDistance(self.averageFlowVector, np.array([0, 0, 0]))
         #self.averageFlowVector /= np.sqrt( self.averageFlowVector[0]**2 + self.averageFlowVector[1]**2 + self.averageFlowVector[2]**2 )
         #print('------------------')
@@ -207,6 +185,29 @@ class Plate():
         # This might be needed if the vertices drifts away from the unit sphere due to the rotation matrix.
         for iPoint in range(self.numberOfVertices):
             self.vertices[iPoint, :] /= Utility.VectorDistance(self.vertices[iPoint, :], np.array([0, 0, 0]))
+
+    def MeshTriangulation(self, triangleSizeRegulation = 1.1):
+        #
+        # triangleSizeRegulation : A float value indicating the size of the largest triangle allowed. A value of 1
+        # represents triangle of the size present in the underlying world mesh, these triangles were created from
+        # polyhedron division. A value greater than 1 will allow bigger triangles than the "default ones."
+        #
+        if self.numberOfVertices >=4:
+            tri = scipy.spatial.ConvexHull(self.vertices)
+            plateFaces = tri.simplices
+
+            facesToRemove = []
+            for iFace, face in enumerate(plateFaces):
+                faceCenter = (self.vertices[face[0], :] + self.vertices[face[1], :] + self.vertices[face[2], :]) / 3
+                distanceToCenter1 = Utility.VectorDistance(self.vertices[face[0], :], faceCenter)
+                distanceToCenter2 = Utility.VectorDistance(self.vertices[face[1], :], faceCenter)
+                distanceToCenter3 = Utility.VectorDistance(self.vertices[face[2], :], faceCenter)
+                if (distanceToCenter1 + distanceToCenter2 + distanceToCenter3) / 3 > 1.1 * 2 * self.world.shortestDistance / 3:
+                    facesToRemove.append(iFace)
+            plateFaces = np.delete(plateFaces, facesToRemove, axis=0)
+            self.triangles = plateFaces
+        else:
+            self.triangles = []
 
     @classmethod
     def UpdateKDTree(cls):
