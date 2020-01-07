@@ -255,7 +255,7 @@ if True:
     import Root_Directory
     import System_Info
 
-    saveScreenshots = False
+    saveScreenshots = True
 
     fileName = Root_Directory.Path() + '/Templates/Plate_Collection_' + str(1.2) + '.pkl'
     #fileName = Root_Directory.Path() + '/Templates/Plate_Collection_1_2' + '.pkl'
@@ -301,7 +301,16 @@ if True:
     world4 = Templates.Templates.IcoSphereSimple(4)
     treeResult = world.kdTree.query(world4.vertices, 1)
 
-    if True:
+    '''
+    Visualization.VisualizeFlow(1.02*world4.vertices,
+                                plateCollection.xFlow[treeResult[1]],
+                                plateCollection.yFlow[treeResult[1]],
+                                plateCollection.zFlow[treeResult[1]],
+                                world4.faces,
+                                newFigure=True,
+                                sizeFactor=0.08)
+    '''
+    if False:
         iPlate = -1
         for key, plate in plateDictionary.items():
             iPlate += 1
@@ -370,14 +379,14 @@ if True:
             pointColor[iLoop, :] = customColorMap[int(loopScalar), :]
         pointColor /= 255
 
-        '''
+
         platePointVis = mlab.points3d(plateVerts[:, 0], plateVerts[:, 1], plateVerts[:, 2], scale_factor = 0.01)
         platePointVis.glyph.scale_mode = 'scale_by_vector'
         platePointVis.mlab_source.dataset.point_data.scalars = meshScalarsNumber[:, 0]/255
         lut = platePointVis.module_manager.scalar_lut_manager.lut.table.to_array()
         lut[:, 0:3] = customColorMap
         platePointVis.module_manager.scalar_lut_manager.lut.table = lut
-        '''
+
 
         visObj = Visualization.VisualizeGlobe(vertices=plateVerts,
                                               faces=plateFaces,
@@ -390,6 +399,9 @@ if True:
                                               customColormap=customColorMap,
                                               figure = mayaviWindow.figure)
 
+        print('-----VISUALISATION DONE-----')
+        mlab.show()
+        quit()
 
         cursor3d = mlab.points3d(0., 0., 0.,
                                  color=(1, 1, 1),
@@ -469,7 +481,7 @@ if True:
     iPlate = -1
     for key, plate in plateDictionary.items():
         iPlate += 1
-        if iPlate < 10:
+        if iPlate < 2:
             if plate.numberOfVertices > 4:
                 # plateVerts.append(plate.vertices)
                 if iPlate == 0:
@@ -483,6 +495,8 @@ if True:
                 nPoints += plate.numberOfVertices
         else:
             break
+
+    customColorMap = np.random.randint(0, 255, (256, 3))
     mayaviWindow = Visualization.MayaviWindow(windowSize = System_Info.SCREEN_RESOLUTION,
                                               squaredWindow = True)
     visObj = Visualization.VisualizeGlobe(figure = mayaviWindow.figure,
@@ -494,7 +508,7 @@ if True:
                                           projectRadiusSpan = [1, 1.03],
                                           interpolatedTriangleColor = True,
                                           colormap = 'gist_earth',
-                                          randomColormap = True)
+                                          customColormap = customColorMap)
     #Visualization.VisualizeGlobe(vertices=world.vertices.copy(),
     #                             faces=world.faces.copy(),
     #                             radius=world.radius.copy(),
@@ -542,12 +556,12 @@ if True:
 
     @mlab.animate(delay = 10)
     def anim():
-        for iStep in range(1000):
+        for iStep in range(100):
             #s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
             iPlate = -1
             for key, plate in plateDictionary.items():
                 iPlate += 1
-                if iPlate < 10:
+                if iPlate < 2:
                     #print(plate.averageFlowVector)
                     #print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
                     #plate.averageFlowVector /= Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
@@ -599,7 +613,7 @@ if True:
             iPlate = -1
             for key, plate in plateDictionary.items():
                 iPlate += 1
-                if iPlate < 10:
+                if iPlate < 2:
                     for iPoint in range(plate.numberOfVertices):
                         s[plate.nearestPointIndex[iPoint]] = plate.ID
                         s[plate.secondNearestPointIndex[iPoint]] = plate.ID
