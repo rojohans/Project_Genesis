@@ -121,6 +121,8 @@ class MayaviWindow(HasTraits):
         mlab.surf(np.zeros([2, 2]), figure = self.updatedScene.mayavi_scene, opacity = 0) # Dummy surface
         mlab.text(0.6, 0.9, 'Eroded', width=0.4)
 
+# ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
 class MayaviWindow():
     def __init__(self,
                  windowSize=[700, 700],
@@ -132,11 +134,11 @@ class MayaviWindow():
 
 class VisualizeGlobe():
     def __init__(self,
-                 figure,
                  vertices,
                  faces,
                  radius,
                  scalars,
+                 figure=None,
                  projectTopography = True,
                  projectRadiusSpan = [1, 1.1],
                  interpolatedTriangleColor = False,
@@ -155,20 +157,36 @@ class VisualizeGlobe():
         self.figure = figure
         if interpolatedTriangleColor:
             if projectTopography:
-                self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * 0.99,
-                                            vertices[:, 1] * 0.99,
-                                            vertices[:, 2] * 0.99,
-                                            faces,
-                                            scalars = scalars[:, 0],
-                                            colormap=colormap)
+                if figure:
+                    self.mayaviMeshObject = figure.mlab.triangular_mesh(vertices[:, 0] * 0.99,
+                                                vertices[:, 1] * 0.99,
+                                                vertices[:, 2] * 0.99,
+                                                faces,
+                                                scalars = scalars[:, 0],
+                                                colormap=colormap)
+                else:
+                    self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * 0.99,
+                                                vertices[:, 1] * 0.99,
+                                                vertices[:, 2] * 0.99,
+                                                faces,
+                                                scalars = scalars[:, 0],
+                                                colormap=colormap)
             else:
                 radius *= (projectRadiusSpan[1]-projectRadiusSpan[0])
-                self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius),
-                                            vertices[:, 1] * (projectRadiusSpan[0] + radius),
-                                            vertices[:, 2] * (projectRadiusSpan[0] + radius),
-                                            faces,
-                                            scalars=scalars[:, 0],
-                                            colormap=colormap)
+                if figure:
+                    self.mayaviMeshObject = figure.mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius),
+                                                vertices[:, 1] * (projectRadiusSpan[0] + radius),
+                                                vertices[:, 2] * (projectRadiusSpan[0] + radius),
+                                                faces,
+                                                scalars=scalars[:, 0],
+                                                colormap=colormap)
+                else:
+                    self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * (projectRadiusSpan[0] + radius),
+                                                vertices[:, 1] * (projectRadiusSpan[0] + radius),
+                                                vertices[:, 2] * (projectRadiusSpan[0] + radius),
+                                                faces,
+                                                scalars=scalars[:, 0],
+                                                colormap=colormap)
         else:
             if projectTopography:
                 self.mayaviMeshObject = mlab.triangular_mesh(vertices[:, 0] * 0.99,
@@ -216,8 +234,46 @@ class VisualizeGlobe():
         if customColormap is not None:
             lut = self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
             lut[:, 0:3] = customColormap
+            #print(np.shape(lut))
             self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
 
+def VisualizeTubes(vertices, lines, scalars = None, customColorMap = None, tubeRadius = 0.003, tubeSides = 3, scene = None):
+    '''
+    Unclear if this should be a method or a class, simpler with method but possibly more powerful with a class.
+
+    :param vertices: (N, 3) nparray
+        An array of (x, y, z) points. N: # points.
+    :param lines: (M, 2) nparray
+        An array of connections (pi, pj). M: # lines.
+    :param scalars: (N, 1) nparray
+        An array of values in the range [0, 255]. These values will be used to set the colour of each tube.
+    :param customColorMap: (256, 3) nparray
+        An array containing values in the range [0, 255].
+    :return:
+    '''
+
+    # Creates the polydata.
+    mesh = tvtk.PolyData(points=vertices, lines = lines)
+
+    if scalars is not None:
+        mesh.point_data.scalars = scalars
+        mesh.point_data.scalars.name = 'scalars'
+
+    # Translates the polydata into tubes and displays them as a surface.
+    tube = mlab.pipeline.tube(mesh, tube_radius = tubeRadius, tube_sides = tubeSides)
+    tube.filter.radius_factor = 1.
+    if scene is None:
+        tubeSurface = mlab.pipeline.surface(tube)
+    else:
+        tubeSurface = scene.mlab.pipeline.surface(tube)
+
+    # Changes the colormap.
+    if customColorMap is not None:
+        lut = tubeSurface.module_manager.scalar_lut_manager.lut.table.to_array()
+        lut[:, 0:3] = customColorMap
+        tubeSurface.module_manager.scalar_lut_manager.lut.table = lut
+
+    return tubeSurface
 
 class VisualizeFlow():
     def __init__(self,
@@ -259,7 +315,6 @@ class VisualizeFlow():
                                               scale_factor=sizeFactor,
                                               color=arrowColor,
                                               mode='arrow')#arrow #cone
-
 
 
 

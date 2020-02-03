@@ -34,7 +34,7 @@ CalculateFlow = True # Determines if the vertex noise should be converted into a
 
 # For division values of 8 or greater the visualization becomes slow and laggy. (On mac)
 import time
-tic = time.clock()
+tic = time.perf_counter()
 #world = Simulation.Templates.IcoSphere(6)
 
 world = Templates.Templates.GetIcoSphere(6) # use 4 when testing tectonic plates.
@@ -48,7 +48,7 @@ world = Templates.Templates.GetIcoSphere(6) # use 4 when testing tectonic plates
 # neighbours for one distance value, instead of a range.
 # Consider saving the ico sphere as multiple .csv files.
 # 0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
-toc = time.clock()
+toc = time.perf_counter()
 print(toc-tic)
 
 
@@ -282,11 +282,13 @@ if True:
                                              world.kdTree,
                                              flowRotationVectors,
                                              world)
+    Simulation.PlateDynamics.Plate.UpdateKDTree()
     for key, plate in plateDictionary.items():
         plate.MeshTriangulation()
         plate.UpdateNearestPointIndex()
         plate.UpdateFlow()
         plate.UpdateAverage()
+        plate.CalculateAdjacentPlates()
     #    print(plate.averageFlowVector)
     #    print('----------')
     #Simulation.PlateDynamics.Plate.CheckForMerge()
@@ -302,35 +304,758 @@ if True:
     treeResult = world.kdTree.query(world4.vertices, 1)
 
     '''
-    Visualization.VisualizeFlow(1.02*world4.vertices,
-                                plateCollection.xFlow[treeResult[1]],
-                                plateCollection.yFlow[treeResult[1]],
-                                plateCollection.zFlow[treeResult[1]],
-                                world4.faces,
-                                newFigure=True,
-                                sizeFactor=0.08)
+    import time
+    import numpy as np
+    from mayavi import mlab
+
+    f = mlab.figure()
+    V = np.random.randn(20, 20, 20)
+    s = mlab.contour3d(V, contours=[0])
+
+    @mlab.animate(delay=10, ui = False)
+    def anim():
+        i = 0
+        while i < 5:
+            time.sleep(1)
+            s.mlab_source.set(scalars=np.random.randn(20, 20, 20))
+            i += 1
+            yield
+    anim()
+    mlab.show()
+    quit()
     '''
-    if False:
+
+    import wx
+
+    app = wx.App()
+    frame = wx.Frame(parent=None, title='Hello World')
+    frame.Show()
+    app.MainLoop()
+    quit()
+
+
+
+    from numpy import ogrid, sin
+
+    from traits.api import HasTraits, Instance
+    from traitsui.api import View, Item
+
+    from mayavi.sources.api import ArraySource
+    from mayavi.modules.api import IsoSurface
+
+    from mayavi.core.ui.api import SceneEditor, MlabSceneModel
+
+
+    class MayaviView(HasTraits):
+
+        scene = Instance(MlabSceneModel, ())
+
+        # The layout of the panel created by Traits
+        view = View(Item('scene', editor=SceneEditor(), resizable=True,
+                         show_label=False),
+                    resizable=True)
+
+        def __init__(self):
+            HasTraits.__init__(self)
+            # Create some data, and plot it using the embedded scene's engine
+            x, y, z = ogrid[-10:10:100j, -10:10:100j, -10:10:100j]
+            scalars = sin(x * y * z) / (x * y * z)
+            src = ArraySource(scalar_data=scalars)
+            self.scene.engine.add_source(src)
+            src.add_module(IsoSurface())
+
+
+    # -----------------------------------------------------------------------------
+    # Wx Code
+    import wx
+
+
+    class MainWindow(wx.Frame):
+
+        def __init__(self, parent, id):
+            wx.Frame.__init__(self, parent, id, 'Mayavi in Wx')
+            self.mayavi_view = MayaviView()
+            # Use traits to create a panel, and use it as the content of this
+            # wx frame.
+            self.control = self.mayavi_view.edit_traits(
+                parent=self,
+                kind='subpanel').control
+            self.Show(True)
+
+
+    app = wx.PySimpleApp()
+    frame = MainWindow(None, wx.ID_ANY)
+    app.MainLoop()
+
+
+    quit()
+
+
+
+
+    import time
+    import numpy as np
+    from mayavi import mlab
+    import wx
+
+    V = np.random.randn(20, 20, 20)
+    f = mlab.figure()
+    s = mlab.contour3d(V, contours=[0])
+
+
+    def animate_sleep(x):
+        n_steps = int(x / 0.01)
+        for i in range(n_steps):
+            time.sleep(0.01)
+            #help(wx.Yield)
+            wx.YieldIfNeeded()
+
+    for i in range(5):
+        animate_sleep(1)
+
+        V = np.random.randn(20, 20, 20)
+
+        # Update the plot with the new information
+        s.mlab_source.set(scalars=V)
+    quit()
+
+
+
+    for key in plateDictionary:
+        plateDictionary[key].UpdateSurfaceKDTree()
+
+    # Creates a GUI.
+    if True:
+        tic = time.perf_counter()
+        for key in plateDictionary:
+            plate = plateDictionary[key]
+            if plate.numberOfVertices > 4:
+                plate.FindBorderPoints()
+                plate.ConnectBorderPoints(sort = True)
+                plate.UpdateBorderKDTree()
+
+                plate.FindSecondBorderPoints()
+
+                #plate.UpdateSurfaceKDTree()
+                #plate.ConnectEdgePoints(sort = False)
+        toc = time.perf_counter()
+        print('plate border calculating/sorting : ', toc-tic)
+
+
+        tic = time.perf_counter()
+        for key in plateDictionary:
+            plate = plateDictionary[key]
+            if plate.numberOfVertices > 4:
+                #plate.CalculateAdjacentPlates()
+                #print(plate.adjacentPlateIDs)
+                plate.CalculateInteractionStress()
+        toc = time.perf_counter()
+        print('Interaction stress calculated : ', toc - tic)
+
+
+        nPoints = 0
         iPlate = -1
+        borderIndex = 0
         for key, plate in plateDictionary.items():
             iPlate += 1
-            if iPlate < 2:
-                if iPlate == 0:
-                    v = plate.vertices
-                    s = plate.ID * np.ones((plate.numberOfVertices, 1))
-                else:
-                    v = np.append(v, plate.vertices, axis=0)
-                    s = np.append(s, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
+            if iPlate < 100:
+                if plate.numberOfVertices > 4:
+                    # plateVerts.append(plate.vertices)
+                    nBorderPoints = np.size(plate.borderVertex, 0)
+                    if iPlate == 0:
+                        plateVerts = plate.vertices
+                        plateFaces = plate.triangles
+                        meshScalarsID = plate.ID * np.ones((plate.numberOfVertices, 1))
+                        meshScalarsNumber = iPlate * np.ones((plate.numberOfVertices, 1))
+                        scalarStress = plate.stressVector
+                        scalarInteractionStress = plate.interactionStress
+                        # meshScalarsNumber = plate.ID * np.ones((plate.numberOfVertices, 1))
+                        borderVertices = plate.borderVertex
+                        borderLines = plate.borderLines
+                        borderScalars = iPlate * np.ones((nBorderPoints, 1))
+                        secondBorderScalars = iPlate * np.ones(( np.size(plate.secondBorderIndices, 0) , 1))
+                        secondBorderVertices = plate.secondBorderPoints
+                    else:
+                        plateVerts = np.append(plateVerts, plate.vertices, axis=0)
+                        plateFaces = np.append(plateFaces, plate.triangles + nPoints, axis=0)
+                        meshScalarsID = np.append(meshScalarsID, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
+                        meshScalarsNumber = np.append(meshScalarsNumber, iPlate * np.ones((plate.numberOfVertices, 1)), axis=0)
+                        scalarStress = np.append(scalarStress, plate.stressVector, axis=0)
+                        scalarInteractionStress = np.append(scalarInteractionStress, plate.interactionStress, axis=0)
+
+
+                        borderVertices = np.append(borderVertices, plate.borderVertex, axis=0)
+                        borderLines = np.append(borderLines, borderIndex + plate.borderLines, axis = 0)
+                        borderScalars = np.append(borderScalars, iPlate * np.ones((nBorderPoints, 1)),axis=0)
+                        secondBorderScalars = np.append(secondBorderScalars,
+                                                        iPlate * np.ones(( np.size(plate.secondBorderIndices, 0) , 1)),
+                                                        axis=0)
+                        secondBorderVertices = np.append(secondBorderVertices, plate.secondBorderPoints, axis=0)
+                    nPoints += plate.numberOfVertices
+                    borderIndex += nBorderPoints
             else:
                 break
 
-            # plate.ID
-        v = np.append(v, 0.98*world.vertices, axis = 0)
-        s = np.append(s, np.zeros((world.numberOfvertices, 1)), axis = 0)
+        # Creates/retrieves the colormaps to be used.
+        colormapRandom = np.random.randint(0, 255, (256, 3))
+        import Templates.Colormap.Colormap as Colormap
+        colormapHeat = Colormap.LoadColormap('gist_heat')
 
-        i = scipy.interpolate.NearestNDInterpolator(v, s)
-        s = i(world.vertices)
+        # Rescales scalar values to fit the colormaps.
+        meshScalarsNumber /= np.max(meshScalarsNumber)
+        meshScalarsNumber *= 255
+        meshScalarsNumber = np.round(meshScalarsNumber)
+        print(np.min(scalarStress))
+        print(np.max(scalarStress))
+        scalarStress /= 2
+        #scalarStress *= 255/2
+        #scalarStrees = np.round(scalarStress)
+        borderScalars /= np.max(borderScalars)
+        borderScalars *= 255
+        borderScalars = np.round(borderScalars)
 
+        secondBorderScalars /= np.max(secondBorderScalars)
+        secondBorderScalars *= 255
+        secondBorderScalars = np.round(secondBorderScalars)
+
+        scalarInteractionStress /= np.max(scalarInteractionStress)
+        print(np.min(scalarStress))
+        print(np.max(scalarStress))
+
+
+
+
+        '''
+        # Create a new mayavi scene.
+        mayavi.new_scene()
+
+        # Get the current active scene.
+        s = mayavi.engine.current_scene
+
+        # Read a data file.
+        d = mayavi.open('fire_ug.vtu')
+
+        # Import a few modules.
+        from mayavi.modules.api import Outline, IsoSurface, Streamline
+
+        # Show an outline.
+        o = Outline()
+        mayavi.add_module(o)
+        o.actor.property.color = 1, 0, 0  # red color.
+
+        # Make a few contours.
+        iso = IsoSurface()
+        mayavi.add_module(iso)
+        iso.contour.contours = [450, 570]
+        # Make them translucent.
+        iso.actor.property.opacity = 0.4
+        # Show the scalar bar (legend).
+        iso.module_manager.scalar_lut_manager.show_scalar_bar = True
+
+        # A streamline.
+        st = Streamline()
+        mayavi.add_module(st)
+        # Position the seed center.
+        st.seed.widget.center = 3.5, 0.625, 1.25
+        st.streamline_type = 'tube'
+
+        # Save the resulting image to a PNG file.
+        s.scene.save('test.png')
+
+        # Make an animation:
+        for i in range(36):
+            # Rotate the camera by 10 degrees.
+            s.scene.camera.azimuth(10)
+
+            # Resets the camera clipping plane so everything fits and then
+            # renders.
+            s.scene.reset_zoom()
+
+            # Save the scene.
+            s.scene.save_png('anim%d.png' % i)
+        mlab.show()
+        quit()
+        '''
+
+
+        from numpy import linspace, pi, cos, sin
+        from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum
+        from traitsui.api import View, Item, HGroup
+        from mayavi.tools.mlab_scene_model import MlabSceneModel
+        from tvtk.pyface.scene_editor import SceneEditor
+
+        class MayaviWindow(HasTraits):
+            #n_turns = Range(0, 30, 11)
+            flow_toggle = Button(label = 'Toggle Flow On/Off')
+            randomize_plate_colours = Button()
+            quit_button = Button(label = 'QUIT')
+            simulate_button = Button(label = 'SIMULATE')
+            surface_scalar_mode = Enum('ID', 'Interaction_Stress', 'Stress')
+            mayaviScene = Instance(MlabSceneModel, ())
+            #scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+
+            flowVisibility = 1.0
+            a = 0
+
+            def __init__(self, colormapRandom, colormapHeat):
+                HasTraits.__init__(self)
+                self.colormapRandom = colormapRandom
+                self.colormapHeat = colormapHeat
+
+                self.visObjBlack = Visualization.VisualizeGlobe(vertices=0.98 * world4.vertices.copy(),
+                                                           faces=world4.faces.copy(),
+                                                           radius=world4.radius.copy(),
+                                                           scalars=world4.radius.copy(),
+                                                           projectTopography=True,
+                                                           projectRadiusSpan=[1, 1.03],
+                                                           interpolatedTriangleColor=True,
+                                                           colormap='gist_earth',
+                                                           figure=self.mayaviScene)
+                self.borderObj = Visualization.VisualizeTubes(borderVertices, borderLines, borderScalars, colormapRandom, scene = self.mayaviScene)
+
+                self.surfaceObj = Visualization.VisualizeGlobe(vertices=plateVerts,
+                                                      faces=plateFaces,
+                                                      radius=np.ones((nPoints, 1)),
+                                                      scalars=meshScalarsNumber,
+                                                      projectTopography=True,
+                                                      projectRadiusSpan=[1, 1.03],
+                                                      interpolatedTriangleColor=True,
+                                                      customColormap = colormapRandom,
+                                                      figure=self.mayaviScene)
+
+
+                self.flowObj = Visualization.VisualizeFlow(1.02 * world.vertices,
+                                                      plateCollection.xFlow,
+                                                      plateCollection.yFlow,
+                                                      plateCollection.zFlow,
+                                                      world.faces,
+                                                      newFigure=False,
+                                                      arrowColor=(1, 1, 1),
+                                                      sizeFactor=0.02)
+                '''
+                self.flowObj = Visualization.VisualizeFlow(1.02 * world4.vertices,
+                                                      plateCollection.xFlow[treeResult[1]],
+                                                      plateCollection.yFlow[treeResult[1]],
+                                                      plateCollection.zFlow[treeResult[1]],
+                                                      world4.faces,
+                                                      newFigure=False,
+                                                      arrowColor=(1, 1, 1),
+                                                      sizeFactor=0.03)
+                '''
+
+                '''
+                # Displays the "second border points", these are the points adjacent to the borderpoints.
+                self.secondBorder = self.mayaviScene.mlab.points3d(secondBorderVertices[:, 0],
+                                                                   secondBorderVertices[:, 1],
+                                                                   secondBorderVertices[:, 2],
+                                                                   scale_factor = 0.005)
+                self.secondBorder.glyph.scale_mode = 'scale_by_vector'
+                # The scalar needs to be in the range [0, 1]
+                self.secondBorder.mlab_source.dataset.point_data.scalars = secondBorderScalars[:, 0] / 255
+                self.secondBorder.mlab_source.dataset.point_data.scalars.name = 'secondBorderScalars'
+                lut = self.secondBorder.module_manager.scalar_lut_manager.lut.table.to_array()
+                lut[:, 0:3] = colormapRandom
+                self.secondBorder.module_manager.scalar_lut_manager.lut.table = lut
+                '''
+
+            def your_function(self, obj, event):
+                #help(obj)
+                #print(obj)
+                print(obj.GetKeyCode())
+                self._flow_toggle_fired()
+                #GetEventPosition(...)
+                #GetMousePosition(...)
+                #GetPicker(...)
+                #StartPickCallback(...)
+                 #|      V.StartPickCallback()
+                 #|      C++: virtual void StartPickCallback()
+                 #|
+                 #|      These methods correspond to the Exit, User and Pick callbacks.
+                 #|      They allow for the Style to invoke them.
+
+            @on_trait_change('mayaviScene.activated')
+            def InitialSceneSettings(self):
+                '''
+                Changes the interactor. The mlab.view() call is neccesary for the interactor to be aligned verticaly with teh z-axis.
+                :return:
+                '''
+                self.mayaviScene.mlab.view(0, 90)
+                self.mayaviScene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+
+                '''
+                # This code is supposed to create an override for the standard hot keys, but it doesn't work.
+                class MyInteractorStyle(tvtk.InteractorStyleUser):
+
+                    def __init__(self, parent=None):
+                        self.AddObserver("MiddleButtonPressEvent", self.middle_button_press_event)
+                        self.AddObserver("MiddleButtonReleaseEvent", self.middle_button_release_event)
+                        #self.AddObserver("KeyPressEvent", self.key_press_event)
+
+                    def middle_button_press_event(self, obj, event):
+                        print("Middle Button pressed")
+                        tvtk.InteractorStyleTerrain.OnMiddleButtonDown()
+                        return
+                    #def key_press_event(selfobj, obj, event):
+                    #    print('Howdy')
+                    #    return
+
+                    def middle_button_release_event(self, obj, event):
+                        print("Middle Button released")
+                        tvtk.InteractorStyleTerrain.OnMiddleButtonUp()
+                        return
+                self.mayaviScene.interactor.interactor_style = MyInteractorStyle()
+                
+                #self.mayaviScene.interactor.add_observer('KeyPressEvent', self.your_function, 9999.0)
+                #self.mayaviScene.interactor.add_observer('MouseMoveEvent', mouse_move_callback)
+                '''
+
+                # The scalarbar must be created after the interactor is created, thusly it cannot be created in the
+                # constructor like all the other mayavi visualization objects.
+                # mayavi.mlab.scalarbar and mayavi.mlab.colorbar seems to be the same.
+                self.scalarBar = self.mayaviScene.mlab.scalarbar(self.surfaceObj.mayaviMeshObject,
+                                                                 orientation = 'vertical',
+                                                                 nb_labels = 6)
+
+            @on_trait_change('surface_scalar_mode')
+            def ChangeSurfaceScalarMode(self):
+                '''
+                Changes the scalars used to sample the colormap.
+                This will not work if interpolatedTriangleColor = False when Visualization.VisualizeGlobe is called. For that
+                one has to add alternative code.
+                :return:
+                '''
+                #self.mayaviScene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+                print(self.surface_scalar_mode)
+                if self.surface_scalar_mode is 'ID':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars = meshScalarsNumber[:, 0])
+
+                    #lut = self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    #lut[:, 0:3] = customColormap
+                    #print(np.shape(lut))
+                    #self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = self.colormapRandom
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (0, 255)
+
+                elif self.surface_scalar_mode is 'Interaction_Stress':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars=scalarInteractionStress[:, 0])
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = self.colormapHeat
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (0, 1)
+
+                elif self.surface_scalar_mode is 'Stress':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars = scalarStress[:, 0])
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = self.colormapHeat
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (0, 1)
+
+                    #self.surfaceObj.mayaviMeshObject.mlab_source.set(colormap='gist_heat')
+
+            def _randomize_plate_colours_fired(self):
+                '''
+                When the button is pushed a new random colormap is created and the objects which might use it is updated.
+                :return:
+                '''
+                self.colormapRandom = np.random.randint(0, 255, (256, 3))
+
+                if self.surface_scalar_mode == 'ID':
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = self.colormapRandom
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+
+                lut = self.borderObj.module_manager.scalar_lut_manager.lut.table.to_array()
+                lut[:, 0:3] = self.colormapRandom
+                self.borderObj.module_manager.scalar_lut_manager.lut.table = lut
+                self.mayaviScene.mlab.draw()
+
+            def _simulate_button_fired(self):
+
+                '''
+                i = 0
+                #t = time.time()
+                #max_framerate = 10
+                while 1:
+                    i += 1
+                    print(i)
+                    self._flow_toggle_fired()
+                    #while time.time() - t < (1. / max_framerate):
+                    #    pass
+                    #t = time.time()
+
+                    time.sleep(5)
+                '''
+
+
+                print('animation starts')
+                @mlab.animate(delay=500, ui = True)
+                def anim():
+                    for iStep in range(10):
+                        print(iStep)
+                        # s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
+                        iPlate = -1
+                        for key, plate in plateDictionary.items():
+                            iPlate += 1
+                            if iPlate < 100:
+                                # print(plate.averageFlowVector)
+                                # print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
+                                # plate.averageFlowVector /= Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
+                                # for iPoint in range(plate.numberOfVertices):
+                                #    plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
+                                #                                                         plate.averageFlowVector, 1 * np.pi / 180)
+                                #    #plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
+                                #    #                                                     plate.verticesFlow[iPoint, :], 1 * np.pi / 180)
+                                # print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
+                                # avgVecNorm = Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
+                                # avgVec = plate.averageFlowVector / avgVecNorm
+                                # plate.vertices = Utility.RotateAroundAxis(plate.vertices, plate.averageFlowVector, 1 * np.pi / 180)
+                                # plate.vertices = Utility.RotateAroundAxis(plate.vertices, avgVec, 3*avgVecNorm * np.pi / 180)
+                                # for iPoint in range(plate.numberOfVertices):
+                                #     plate.vertices[iPoint, :] /= Utility.VectorDistance(plate.vertices[iPoint, :], np.array([0, 0, 0]))
+
+                                plate.Rotate(angleScaling=3)
+                                # plate.NormalizeVertices() # Unsure if this i needed.
+                                plate.UpdateFlow()
+                                plate.UpdateAverage()
+                                # break
+                            else:
+                                break
+                        # quit()
+                        # print('------------------------------------------------------')
+
+                        nPoints = 0
+                        iPlate = -1
+                        borderIndex = 0
+                        for key, plate in plateDictionary.items():
+                            iPlate += 1
+                            if iPlate < 100:
+                                if plate.numberOfVertices > 4:
+                                    # plateVerts.append(plate.vertices)
+                                    nBorderPoints = np.size(plate.borderVertex, 0)
+                                    if iPlate == 0:
+                                        plateVerts = plate.vertices
+                                        plateFaces = plate.triangles
+                                        meshScalarsID = plate.ID * np.ones((plate.numberOfVertices, 1))
+                                        meshScalarsNumber = iPlate * np.ones((plate.numberOfVertices, 1))
+                                        scalarStress = plate.stressVector
+                                        scalarInteractionStress = plate.interactionStress
+                                        # meshScalarsNumber = plate.ID * np.ones((plate.numberOfVertices, 1))
+                                        borderVertices = plate.borderVertex
+                                        borderLines = plate.borderLines
+                                        borderScalars = iPlate * np.ones((nBorderPoints, 1))
+                                        secondBorderScalars = iPlate * np.ones(
+                                            (np.size(plate.secondBorderIndices, 0), 1))
+                                        secondBorderVertices = plate.secondBorderPoints
+                                    else:
+                                        plateVerts = np.append(plateVerts, plate.vertices, axis=0)
+                                        plateFaces = np.append(plateFaces, plate.triangles + nPoints, axis=0)
+                                        meshScalarsID = np.append(meshScalarsID,
+                                                                  plate.ID * np.ones((plate.numberOfVertices, 1)),
+                                                                  axis=0)
+                                        meshScalarsNumber = np.append(meshScalarsNumber,
+                                                                      iPlate * np.ones((plate.numberOfVertices, 1)),
+                                                                      axis=0)
+                                        scalarStress = np.append(scalarStress, plate.stressVector, axis=0)
+                                        scalarInteractionStress = np.append(scalarInteractionStress,
+                                                                            plate.interactionStress, axis=0)
+
+                                        borderVertices = np.append(borderVertices, plate.borderVertex, axis=0)
+                                        borderLines = np.append(borderLines, borderIndex + plate.borderLines, axis=0)
+                                        borderScalars = np.append(borderScalars, iPlate * np.ones((nBorderPoints, 1)),
+                                                                  axis=0)
+                                        secondBorderScalars = np.append(secondBorderScalars,
+                                                                        iPlate * np.ones(
+                                                                            (np.size(plate.secondBorderIndices, 0), 1)),
+                                                                        axis=0)
+                                        secondBorderVertices = np.append(secondBorderVertices, plate.secondBorderPoints,
+                                                                         axis=0)
+                                    nPoints += plate.numberOfVertices
+                                    borderIndex += nBorderPoints
+                            else:
+                                break
+
+                        # visObj.mayaviMeshObject.mlab_source.scalars = s
+                        self.surfaceObj.mayaviMeshObject.mlab_source.x = plateVerts[:, 0]
+                        self.surfaceObj.mayaviMeshObject.mlab_source.y = plateVerts[:, 1]
+                        self.surfaceObj.mayaviMeshObject.mlab_source.z = plateVerts[:, 2]
+
+                        yield
+
+                import mayavi
+                a = anim()
+                #self.mayaviScene.Focus()
+                #a.close()
+                #help(a)
+                #t = mayavi.tools.Animator(500, a.next)
+                #t.edit_traits()
+
+                #a.Close()
+                #help(a)
+                #quit()
+                #a.Start()
+
+                #mlab.show()
+
+                #quit()
+
+
+
+
+            def flow_change(self):
+
+                self.flowVisibility = 1.0 - self.flowVisibility
+                #print(self.flowVisibility)
+                self.flowObj.mayaviFlowObject.mlab_source.set(x = (self.flowVisibility + 0.02) * world.vertices[:, 0],
+                                                              y = (self.flowVisibility + 0.02) * world.vertices[:, 1],
+                                                              z = (self.flowVisibility + 0.02) * world.vertices[:, 2])
+
+                #pts.mlab_source.reset(x=_x, y=_y, z=_z, )
+                #yield
+                #self.mayaviScene.draw()
+
+            def _flow_toggle_fired(self):
+                '''
+                Moves the flowfield inside/outside of the sphere, thus making it visible/unvisible to the user.
+                :return:
+                '''
+
+                import wx
+
+                def animate_sleep(x):
+                    n_steps = int(x / 0.01)
+                    for i in range(n_steps):
+                        time.sleep(0.01)
+                        wx.Yield()
+
+                for i in range(10):
+                    animate_sleep(1)
+
+                    self.flowVisibility = 1.0 - self.flowVisibility
+                    print(self.flowVisibility)
+                    self.flowObj.mayaviFlowObject.mlab_source.set(
+                        x=(self.flowVisibility + 0.02) * world.vertices[:, 0],
+                        y=(self.flowVisibility + 0.02) * world.vertices[:, 1],
+                        z=(self.flowVisibility + 0.02) * world.vertices[:, 2])
+
+
+                '''
+                @mlab.show
+                @mlab.animate()
+                def anim_flow():
+                    for i in range(10):
+                        self.flowVisibility = 1.0 - self.flowVisibility
+                        print(self.flowVisibility)
+                        self.flowObj.mayaviFlowObject.mlab_source.set(
+                            x=(self.flowVisibility + 0.02) * world.vertices[:, 0],
+                            y=(self.flowVisibility + 0.02) * world.vertices[:, 1],
+                            z=(self.flowVisibility + 0.02) * world.vertices[:, 2])
+                        yield
+
+
+                anim_flow()
+                '''
+                #self.flowVisibility = 1.0 - self.flowVisibility
+                #print(self.flowVisibility)
+                #self.flowObj.mayaviFlowObject.mlab_source.set(x = (self.flowVisibility + 0.02) * world.vertices[:, 0],
+                #                                              y = (self.flowVisibility + 0.02) * world.vertices[:, 1],
+                #                                              z = (self.flowVisibility + 0.02) * world.vertices[:, 2])
+                '''
+                    #self.mayaviScene.reset_zoom()
+                    #time.sleep(5)
+                if self.a < 10:
+                    #print(a)
+                    self.a += 1
+                    self._flow_toggle_fired()
+                    time.sleep(5)
+                else:
+                    self.a = 0
+                    print('-------')
+                    return
+                '''
+
+
+            def _quit_button_fired(self):
+                quit()
+
+            view = View(
+                Item('mayaviScene', height = 0.9, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
+                HGroup('simulate_button', 'flow_toggle', 'surface_scalar_mode', 'randomize_plate_colours', 'quit_button'),
+                resizable = True)
+        print('>------------------------------<')
+        print('>---< GUI has been created >---<')
+        print('>------------------------------<')
+        mayaviWindow = MayaviWindow(colormapRandom, colormapHeat)
+        mayaviWindow.configure_traits()
+                   #MayaviWindow(colormapRandom, colormapHeat).configure_traits()
+        mlab.show()
+        quit()
+
+
+
+
+
+
+
+
+        '''
+        from numpy import ogrid, sin
+
+        from traits.api import HasTraits, Instance
+        from traitsui.api import View, Item
+
+        from mayavi.sources.api import ArraySource
+        from mayavi.modules.api import IsoSurface
+
+        from mayavi.core.ui.api import SceneEditor, MlabSceneModel
+
+
+        class MayaviView(HasTraits):
+
+            scene = Instance(MlabSceneModel, ())
+
+            # The layout of the panel created by Traits
+            view = View(Item('scene', editor=SceneEditor(), resizable=True,
+                             show_label=False),
+                        resizable=True)
+
+            def __init__(self):
+                HasTraits.__init__(self)
+                # Create some data, and plot it using the embedded scene's engine
+                x, y, z = ogrid[-10:10:100j, -10:10:100j, -10:10:100j]
+                scalars = sin(x * y * z) / (x * y * z)
+                src = ArraySource(scalar_data=scalars)
+                self.scene.engine.add_source(src)
+                src.add_module(IsoSurface())
+
+
+        # -----------------------------------------------------------------------------
+        # Wx Code
+        import wx
+
+
+        class MainWindow(wx.Frame):
+
+            def __init__(self, parent, id):
+                wx.Frame.__init__(self, parent, id, 'Mayavi in Wx')
+                self.mayavi_view = MayaviView()
+                # Use traits to create a panel, and use it as the content of this
+                # wx frame.
+                self.control = self.mayavi_view.edit_traits(
+                    parent=self,
+                    kind='subpanel').control
+                self.Show(True)
+
+
+        app = wx.PySimpleApp()
+        frame = MainWindow(None, wx.ID_ANY)
+        app.MainLoop()
+        quit()
+        '''
+
+    # Mayavi window with a picker.
+    if False:
         nPoints = 0
         iPlate = -1
         for key, plate in plateDictionary.items():
@@ -356,6 +1081,7 @@ if True:
         mayaviWindow = Visualization.MayaviWindow(windowSize=System_Info.SCREEN_RESOLUTION,
                                                   squaredWindow=True)
         #mlab.points3d(plateVerts[:, 0], plateVerts[:, 1], plateVerts[:, 2], scale_factor = 0.01)
+        '''
         visObjBlack = Visualization.VisualizeGlobe(vertices=0.98*world4.vertices.copy(),
                                               faces=world4.faces.copy(),
                                               radius=world4.radius.copy(),
@@ -365,6 +1091,7 @@ if True:
                                               interpolatedTriangleColor=True,
                                               colormap='gist_earth',
                                               figure = mayaviWindow.figure)
+        '''
         customColorMap = np.random.randint(0, 255, (256, 3))
 
         #customColorMap[0, 0:3] = 0
@@ -380,13 +1107,14 @@ if True:
         pointColor /= 255
 
 
+        '''
         platePointVis = mlab.points3d(plateVerts[:, 0], plateVerts[:, 1], plateVerts[:, 2], scale_factor = 0.01)
         platePointVis.glyph.scale_mode = 'scale_by_vector'
         platePointVis.mlab_source.dataset.point_data.scalars = meshScalarsNumber[:, 0]/255
         lut = platePointVis.module_manager.scalar_lut_manager.lut.table.to_array()
         lut[:, 0:3] = customColorMap
         platePointVis.module_manager.scalar_lut_manager.lut.table = lut
-
+        '''
 
         visObj = Visualization.VisualizeGlobe(vertices=plateVerts,
                                               faces=plateFaces,
@@ -399,9 +1127,9 @@ if True:
                                               customColormap=customColorMap,
                                               figure = mayaviWindow.figure)
 
-        print('-----VISUALISATION DONE-----')
-        mlab.show()
-        quit()
+        #print('-----VISUALISATION DONE-----')
+        #mlab.show()
+        #quit()
 
         cursor3d = mlab.points3d(0., 0., 0.,
                                  color=(1, 1, 1),
@@ -412,6 +1140,12 @@ if True:
         # the perspective of the camera. The textObject could also be created as a separate panel.
         def picker_callback(picker_obj):
             picked = picker_obj.actors
+            '''
+
+            #print(picker_obj)
+            #print('============================================================')
+            #print(picked)
+            #quit()
 
             #print(picker_obj)
             print('--------------')
@@ -450,6 +1184,9 @@ if True:
                 #print(picker_obj.point_id)
                 #print('---------------------')
                 #print('Mesh ID : ', picker_obj.point_id)
+
+                print(picker_obj.point_id)
+
                 cursor3d.mlab_source.reset(x=plateVerts[picker_obj.point_id, 0],
                                            y=plateVerts[picker_obj.point_id, 1],
                                            z=plateVerts[picker_obj.point_id, 2])
@@ -464,7 +1201,7 @@ if True:
                          '\n' + 'mean(Stress) : ' + str(round(averageStress, 3)) +\
                          '\n' + 'Max(stress)    : ' + str(round(maximumStress, 3))
                 textObj.text = tmpStr
-            '''
+            
 
         pickerObj = mayaviWindow.figure.on_mouse_pick(picker_callback)
         pickerObj.tolerance = 0.01
@@ -499,7 +1236,8 @@ if True:
     customColorMap = np.random.randint(0, 255, (256, 3))
     mayaviWindow = Visualization.MayaviWindow(windowSize = System_Info.SCREEN_RESOLUTION,
                                               squaredWindow = True)
-    visObj = Visualization.VisualizeGlobe(figure = mayaviWindow.figure,
+    #figure = mayaviWindow.figure
+    visObj = Visualization.VisualizeGlobe(
                                           vertices = plateVerts,
                                           faces = plateFaces,
                                           radius = np.ones((nPoints, 1)),
@@ -545,7 +1283,7 @@ if True:
                                 sizeFactor=0.08)
 
 
-
+    #print('visialization done')
     #mlab.show()
     #quit()
 
@@ -634,7 +1372,7 @@ if True:
             # Saves a screenshot as a .png file.
             if saveScreenshots:
                 zeros = '0' * (padding - len(str(iStep)))
-                fileName = Root_Directory.Path() + '/Movies/anim' + zeros + str(iStep) + '.png'
+                fileName = Root_Directory.Path() + '/Movies/screenshots/anim' + zeros + str(iStep) + '.tiff'
                 mlab.savefig(filename=fileName)
 
             yield

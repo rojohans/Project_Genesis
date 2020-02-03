@@ -166,6 +166,77 @@ class Plate():
             #vectorAtCenter = Utility.RotateVector(vertex, self.centerPoint, self.verticesFlow[iVertex, :]) ------------ not done when rotation axises are used.
             self.stressVector[iVertex] = Utility.VectorDistance(self.averageFlowVector, vectorAtCenter)
 
+    def CalculateInteractionStress(self):
+        '''
+
+        :return:
+        '''
+
+
+        #
+        #             Consider using adjacentPlate.borderKDTree instead of surfaceKDTree
+        #
+
+        self.interactionStress = np.zeros((self.numberOfVertices, 1))
+        tmpStress = np.zeros((self.numberOfVertices, 1))
+        tmpCount = np.zeros((self.numberOfVertices, 1))
+        for adjacentID in self.adjacentPlateIDs:
+            adjacentPlate = self.plateDictionary[adjacentID]
+            queryResult = adjacentPlate.surfaceKDTree.query_ball_point(self.vertices,
+                                                                       r=7.2 * self.world.shortestDistance)
+            #print(adjacentID)
+            for iPoint, result in enumerate(queryResult):
+                if result:
+                    #interactionFlow = adjacentPlate.verticesFlow[result, :]
+                    for iAdjacent in result:
+                        diff = Utility.VectorDistance(self.verticesFlow[iPoint, :], adjacentPlate.verticesFlow[iAdjacent, :])
+
+                        # This has been commented for the sake of performance, it makes the stress dependent on the
+                        # angle between the interacting plates.
+                        #crossVector = np.cross(self.vertices[iPoint, :], adjacentPlate.vertices[iAdjacent, :])
+                        #dotResult = np.dot(self.verticesFlow[iPoint, :], crossVector)
+                        #if dotResult < 0:
+                        #    dotResult = 0
+                        #diff *= dotResult
+
+
+                        tmpStress[iPoint, 0] += diff
+                        tmpCount[iPoint, 0] += 1
+            '''
+            queryResult = adjacentPlate.borderKDTree.query_ball_point(self.vertices,
+                                                                       r=7.2 * self.world.shortestDistance)
+            #print(adjacentID)
+
+            for iPoint, result in enumerate(queryResult):
+                if result:
+                    try:
+                        adjacentPlate.borderIndex = np.array(adjacentPlate.borderIndex)
+                        #         (N, ) -> (N, 1)
+                        borderResult = adjacentPlate.borderIndex[result, :]
+                    except:
+                        print(result)
+                        print(adjacentPlate.verticesFlow[result, :])
+                        print(np.shape(adjacentPlate.verticesFlow))
+                        print(type(adjacentPlate.verticesFlow))
+                        print(np.shape(adjacentPlate.borderIndex))
+                        print(type(adjacentPlate.borderIndex))
+                        quit()
+                    #interactionFlow = adjacentPlate.verticesFlow[result, :]
+                    for iAdjacent in borderResult:
+                        diff = Utility.VectorDistance(self.verticesFlow[iPoint, :], adjacentPlate.verticesFlow[iAdjacent, :])
+                        crossVector = np.cross(self.vertices[iPoint, :], adjacentPlate.vertices[iAdjacent, :])
+                        dotResult = np.dot(self.verticesFlow[iPoint, :], crossVector)
+                        if dotResult < 0:
+                            dotResult = 0
+                        diff *= dotResult
+
+
+                        tmpStress[iPoint, 0] += diff
+                        tmpCount[iPoint, 0] += 1
+            '''
+        #tmpStress[tmpCount > 0] /= tmpCount[tmpCount > 0]
+        self.interactionStress = tmpStress / 2
+
     def Rotate(self,
                axisOfRotation = None,
                angleOfRotation = None,
@@ -208,6 +279,244 @@ class Plate():
             self.triangles = plateFaces
         else:
             self.triangles = []
+
+    def FindBorderPoints(self):
+        '''
+        This method updates the self.borderVertex array.
+        This is done by looping over self.triangles, vertices which are part of just one edge are considered to be on
+        the border of the surface.
+
+        |  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+        |  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+        | This method is extremely slow and could probably be sped up.
+        |  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+        |  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+
+        :return:
+        '''
+
+        edgeList = []
+        for triangle in self.triangles:
+            edgeList.append([triangle[0], triangle[1]])
+            edgeList.append([triangle[0], triangle[2]])
+            edgeList.append([triangle[1], triangle[2]])
+
+        def justonce(l):
+            #
+            # This method returns the elements of l which only occurs once.
+            # The method is extremely slow.
+            #
+            once = []
+            more = []
+            for x in l:
+                if x not in more:
+                    if x in once:
+                        more.append(x)
+                        once.remove(x)
+                    else:
+                        once.append(x)
+            return once
+        once = justonce(edgeList)
+        borderIndex = []
+        for edge in once:
+            borderIndex.extend(edge)
+        self.borderIndex =  list(set(borderIndex))
+        self.borderVertex = self.vertices[self.borderIndex, :]
+        self.borderEdges = once
+        #self.borderEdges = np.array(once)
+
+    def ConnectBorderPoints(self, sort = False):
+        '''
+        This method sorts the edge points such that a line can be easily drawn through them, creating a border around the plate.
+        A dictionary is created containing all the edges. A random edge is selected and the line segment is created by
+        stepping from one point to another a along the edges to create a connected line.
+        Id the surface is split into several surfaces (2-3 points i bit away from the main surface) those will not be
+        included in the line, this is a problem. One rare problem is that a line is drawn only around those isolated
+        points. One should probably make a loop such that all the border points are included in the line segment.
+        :return:
+        '''
+
+        if sort:
+            # A dictionary is created which indicates which points are connected to which.
+            linkDictionary = {}
+            for edgeIndex in self.borderIndex:
+                linkDictionary[edgeIndex] = []
+            for edge in self.borderEdges:
+                linkDictionary[edge[0]].append(edge[1])
+                linkDictionary[edge[1]].append(edge[0])
+
+            # A random edge is selected. This edge could be part of a small isolated part of the surface, in that case the
+            # visualization would not be ideal. One should probably repeat the whole procedure until all border points are
+            # part of the line list.
+            remainingBorderIndices = self.borderIndex.copy()
+            visitedEdges = []
+            visitedPoints = []
+
+            # Adds line segments step by step by going through connected edges. The loop will end when the line returns to
+            # the same point at which it started.
+            while remainingBorderIndices:
+                #print('------------')
+                #print(remainingBorderIndices)
+                #print(np.shape(remainingBorderIndices))
+
+                randomPoint = [np.random.choice(remainingBorderIndices)]
+                previousPoint = randomPoint[0]
+                currentPoint = linkDictionary[previousPoint][0].copy()
+                visitedEdges.append([previousPoint, currentPoint])
+                visitedPoints.append(previousPoint)
+                visitedPoints.append(currentPoint)
+                remainingBorderIndices.remove(previousPoint)
+                if currentPoint in remainingBorderIndices:
+                    remainingBorderIndices.remove(currentPoint)
+
+                startFound = False
+                while startFound == False:
+                    adjacentPoints = linkDictionary[currentPoint].copy()
+                    adjacentPoints.remove(previousPoint)
+                    while True:
+                        nextPoint = adjacentPoints[0]
+                        nextEdge = [currentPoint, nextPoint]
+
+                        if nextEdge not in visitedEdges:
+                            break
+                        else:
+                            adjacentPoints.remove(nextPoint)
+                            if not adjacentPoints:
+                                startFound = True
+                                break
+
+
+                    visitedPoints.append(nextPoint)
+                    visitedEdges.append(nextEdge)
+                    previousPoint = currentPoint
+                    currentPoint = nextPoint
+                    if nextPoint in remainingBorderIndices:
+                        remainingBorderIndices.remove(nextPoint)
+                #break
+
+            #print(visitedPoints)
+            #print('----')
+
+
+
+
+
+
+            #a = np.arange(0, np.size(visitedPoints, 0))
+            self.borderLines=np.array(visitedEdges)
+
+            #print(type(self.borderLines))
+            #quit()
+
+            #a = np.array([1, 2, 2, 1]).reshape(2, 2)
+            # palette must be given in sorted order
+            #palette = [1, 2]
+            palette = list(np.sort(visitedPoints))
+
+            a = np.zeros((np.size(visitedPoints, 0), 1))
+            for iPoint, point in enumerate(visitedPoints):
+                for i, p in enumerate(palette):
+                    if p == point:
+                        a[i] = iPoint
+                        #break
+
+            #print(a)
+            #print(palette)
+            #print(np.shape(a))
+            #print(np.shape(palette))
+
+            #print(np.append(a, np.array(palette)))
+            #print(palette)
+            #quit()
+
+            #print(palette)
+            # key gives the new values you wish palette to be mapped to.
+            #key = np.array([0, 10])
+            #key = a
+            index = np.digitize(self.borderLines.ravel(), palette, right=True)
+            #print(a[index].reshape(self.borderLines.shape))
+
+            c = self.borderLines.copy()
+            self.borderLines = a[index].reshape(self.borderLines.shape)
+            #print(self.borderLines)
+            #print(np.append(c, self.borderLines, axis = 1))
+            #quit()
+
+
+
+            self.borderVertex = self.vertices[visitedPoints]
+            #self.borderLines = np.vstack(
+            #    [np.arange(0, np.size(self.borderVertex, 0) - 1.5),
+            #     np.arange(1, np.size(self.borderVertex, 0) - .5)]
+            #).T
+            #print(visitedEdges)
+            #print('=========================================================')
+            #print('=========================================================')
+            #print('=========================================================')
+            return
+
+        else:
+
+            a = np.arange(0, np.size(self.borderIndex, 0))
+            self.borderLines=np.array(self.borderEdges)
+
+            #print(type(self.borderLines))
+            #quit()
+
+            #a = np.array([1, 2, 2, 1]).reshape(2, 2)
+            # palette must be given in sorted order
+            #palette = [1, 2]
+            palette = list(np.sort(self.borderIndex))
+            #print(palette)
+            # key gives the new values you wish palette to be mapped to.
+            #key = np.array([0, 10])
+            #key = a
+            index = np.digitize(self.borderLines.ravel(), palette, right=True)
+            #print(a[index].reshape(self.borderLines.shape))
+
+            c = self.borderLines.copy()
+            self.borderLines = a[index].reshape(self.borderLines.shape)
+            #print(np.append(c, self.borderLines, axis = 1))
+            #quit()
+
+
+            return
+            #print(type(self.borderLines))
+            #quit()
+
+
+    def UpdateBorderKDTree(self):
+        self.borderKDTree = spatial.cKDTree(self.borderVertex)
+    def UpdateSurfaceKDTree(self):
+        self.surfaceKDTree = spatial.cKDTree(self.vertices)
+
+    def FindSecondBorderPoints(self):
+        '''
+        :return:
+        '''
+
+        a = []
+
+        queriedIndices = []
+        for borderVertex in self.borderVertex:
+            queryResult = self.surfaceKDTree.query_ball_point(borderVertex, 1.2*self.world.shortestDistance)
+            queriedIndices.extend(queryResult)
+        queriedIndices = set(queriedIndices)
+        #print(queriedIndices)
+        #print(self.borderIndex)
+        borderIndices = self.borderIndex.copy()
+
+        secondBorderIndices = list(queriedIndices - set(borderIndices))
+        #print(secondBorderIndices)
+        self.secondBorderIndices = secondBorderIndices
+        self.secondBorderPoints = self.vertices[secondBorderIndices, :]
+        #quit()
+
+
+
+
+
+
 
     @classmethod
     def UpdateKDTree(cls):

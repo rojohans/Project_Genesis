@@ -8,9 +8,12 @@ import System_Info
 
 
 if System_Info.OPERATING_SYSTEM is 'MAC_OS':
-    os.system("./ffmpeg -f image2 -s 700x700  -r 20 -i anim%03d.png -vcodec mpeg4 -b 6M -y Test_Video.mp4")
+    os.system("./ffmpeg -f image2 -s 700x700  -r 20 -i screenshots/anim%03d.tiff -vcodec mpeg4 -b 6M -y Test_Video.mp4")
 else:
-    os.system("ffmpeg -f image2 -s 1000x1000  -r 20 -i anim%03d.png -vcodec mpeg4 -b 6M -y Test_Video.mp4")
+    os.system("ffmpeg -f image2 -s 1000x1000  -r 20 -i screenshots/anim%03d.tiff -vcodec mpeg4 -b 6M -y Test_Video.mp4")
 #os.system("ffmpeg -r 10 -i anim%03d.png -vcodec mpeg4 -y movie.mp4")
 
+# Removes the image files (and the directory) oce the video has been created. This should be optional.
+os.system("rm -rf screenshots/")
+os.mkdir("screenshots")
 
