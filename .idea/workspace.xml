@@ -1,15 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="95eb631d-f428-432d-8179-131f3e079711" name="Default Changelist" comment="picker object added">
-      <change afterPath="$PROJECT_DIR$/Templates/Colormap/Colormap.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/Project_Genesis.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Project_Genesis.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Movies/Create_Video.py" beforeDir="false" afterPath="$PROJECT_DIR$/Movies/Create_Video.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Simulation/PlateDynamics.py" beforeDir="false" afterPath="$PROJECT_DIR$/Simulation/PlateDynamics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Tests/Noise_3D_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/Tests/Noise_3D_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/Visualization.py" afterDir="false" />
-    </list>
+    <list default="true" id="95eb631d-f428-432d-8179-131f3e079711" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -516,7 +508,14 @@
       <option name="project" value="LOCAL" />
       <updated>1578383316962</updated>
     </task>
-    <option name="localTasksCounter" value="44" />
+    <task id="LOCAL-00044" summary="picker object added">
+      <created>1580732960196</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1580732960196</updated>
+    </task>
+    <option name="localTasksCounter" value="45" />
     <servers />
   </component>
   <component name="TodoView">
@@ -570,6 +569,10 @@
       <screen x="0" y="22" width="1440" height="874" />
     </state>
     <state x="320" y="105" key="#Inspections/0.22.1440.874@0.22.1440.874" timestamp="1579730307162" />
+    <state x="353" y="42" key="CommitChangelistDialog2" timestamp="1580732959434">
+      <screen x="0" y="23" width="1440" height="873" />
+    </state>
+    <state x="353" y="42" key="CommitChangelistDialog2/0.23.1440.873@0.23.1440.873" timestamp="1580732959434" />
     <state x="104" y="207" key="FileChooserDialogImpl" timestamp="1578388371837">
       <screen x="0" y="23" width="1440" height="873" />
     </state>
@@ -599,6 +602,10 @@
     </state>
     <state x="173" y="48" key="SettingsEditor/0.22.1440.874@0.22.1440.874" timestamp="1579626941262" />
     <state x="173" y="49" key="SettingsEditor/0.23.1440.873@0.23.1440.873" timestamp="1580727182464" />
+    <state x="320" y="168" key="Vcs.Push.Dialog.v2" timestamp="1580732965631">
+      <screen x="0" y="23" width="1440" height="873" />
+    </state>
+    <state x="320" y="168" key="Vcs.Push.Dialog.v2/0.23.1440.873@0.23.1440.873" timestamp="1580732965631" />
     <state x="385" y="202" width="670" height="676" key="search.everywhere.popup" timestamp="1579383199542">
       <screen x="0" y="22" width="1440" height="874" />
     </state>
