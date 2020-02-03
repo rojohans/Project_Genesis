@@ -325,99 +325,176 @@ if True:
     quit()
     '''
 
-    import wx
+    if False:
+        import vtk
+        import time
+        #import win32gui
 
-    app = wx.App()
-    frame = wx.Frame(parent=None, title='Hello World')
-    frame.Show()
-    app.MainLoop()
-    quit()
+        def main():
+            # Create a sphere
+            sphereSource = vtk.vtkSphereSource()
+            sphereSource.SetCenter(0.0, 0.0, 0.0)
+            sphereSource.SetRadius(5)
 
+            # Create a mapper and actor
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputConnection(sphereSource.GetOutputPort())
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            prop = actor.GetProperty()
 
+            # Setup a renderer, render window, and interactor
+            renderer = vtk.vtkRenderer()
+            renderWindow = vtk.vtkRenderWindow()
 
-    from numpy import ogrid, sin
+            renderWindow.AddRenderer(renderer);
+            renderWindowInteractor = vtk.vtkRenderWindowInteractor()
+            renderWindowInteractor.SetRenderWindow(renderWindow)
 
-    from traits.api import HasTraits, Instance
-    from traitsui.api import View, Item
+            # Add the actor to the scene
+            renderer.AddActor(actor)
+            renderer.SetBackground(1, 1, 1)  # Background color white
 
-    from mayavi.sources.api import ArraySource
-    from mayavi.modules.api import IsoSurface
+            # Render and interact
+            renderWindow.Render()
+            renderWindow.SetWindowName("Basic Animation")
 
-    from mayavi.core.ui.api import SceneEditor, MlabSceneModel
+            for i in range(100):
+                prop.SetColor(i / 10.0, 0, 0)  # Change the sphere color
+                actor.SetPosition(i - 0.1, 0, 0)  # Change the sphere position
+                renderWindow.Render()  # Redraw the scene
+                time.sleep(0.001)  # Adjust to change the speed of animation
+                #win32gui.PeekMessage(0, 0, 0, 0)  # Keep window from non-responding
+            #for i in range(10):
+            #    prop.SetColor(i / 10.0, 0, 0)  # Change the sphere color
+            #    actor.SetPosition(i - 5, 0, 0)  # Change the sphere position
+            #    renderWindow.Render()  # Redraw the scene
+            #    time.sleep(0.0001)  # Adjust to change the speed of animation
+            #    #win32gui.PeekMessage(0, 0, 0, 0)  # Keep window from non-responding
 
+            renderWindowInteractor.Start()
 
-    class MayaviView(HasTraits):
-
-        scene = Instance(MlabSceneModel, ())
-
-        # The layout of the panel created by Traits
-        view = View(Item('scene', editor=SceneEditor(), resizable=True,
-                         show_label=False),
-                    resizable=True)
-
-        def __init__(self):
-            HasTraits.__init__(self)
-            # Create some data, and plot it using the embedded scene's engine
-            x, y, z = ogrid[-10:10:100j, -10:10:100j, -10:10:100j]
-            scalars = sin(x * y * z) / (x * y * z)
-            src = ArraySource(scalar_data=scalars)
-            self.scene.engine.add_source(src)
-            src.add_module(IsoSurface())
-
-
-    # -----------------------------------------------------------------------------
-    # Wx Code
-    import wx
-
-
-    class MainWindow(wx.Frame):
-
-        def __init__(self, parent, id):
-            wx.Frame.__init__(self, parent, id, 'Mayavi in Wx')
-            self.mayavi_view = MayaviView()
-            # Use traits to create a panel, and use it as the content of this
-            # wx frame.
-            self.control = self.mayavi_view.edit_traits(
-                parent=self,
-                kind='subpanel').control
-            self.Show(True)
-
-
-    app = wx.PySimpleApp()
-    frame = MainWindow(None, wx.ID_ANY)
-    app.MainLoop()
-
-
-    quit()
+        main()
+        quit()
 
 
 
+    if False:
+        from numpy import ogrid, sin
 
-    import time
-    import numpy as np
-    from mayavi import mlab
-    import wx
+        from traits.api import HasTraits, Instance
+        from traitsui.api import View, Item
 
-    V = np.random.randn(20, 20, 20)
-    f = mlab.figure()
-    s = mlab.contour3d(V, contours=[0])
+        from mayavi.sources.api import ArraySource
+        from mayavi.modules.api import IsoSurface
+
+        from mayavi.core.ui.api import SceneEditor, MlabSceneModel
+
+        from numpy import linspace, pi, cos, sin
+        from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum
+        from traitsui.api import View, Item, HGroup
+        from mayavi.tools.mlab_scene_model import MlabSceneModel
+        from tvtk.pyface.scene_editor import SceneEditor
+
+        class MayaviView(HasTraits):
+
+            mayaviScene = Instance(MlabSceneModel, ())
+            quit_button = Button(label='QUIT')
+
+            # The layout of the panel created by Traits
+            #view = View(Item('scene', editor=SceneEditor(), resizable=True,
+            #                 show_label=False),
+            #            resizable=True)
+            view = View(
+                Item('mayaviScene', height = 0.9, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
+                HGroup('quit_button'),
+                resizable = True)
+
+            def __init__(self):
+                HasTraits.__init__(self)
+                # Create some data, and plot it using the embedded scene's engine
+                #x, y, z = ogrid[-10:10:100j, -10:10:100j, -10:10:100j]
+                #scalars = sin(x * y * z) / (x * y * z)
+                #src = ArraySource(scalar_data=scalars)
+                #self.scene.engine.add_source(src)
+                #src.add_module(IsoSurface())
+
+                self.mayaviFlowObject = self.mayaviScene.mlab.quiver3d(1.02*world.vertices[:, 0],
+                                                      1.02*world.vertices[:, 1],
+                                                      1.02*world.vertices[:, 2],
+                                                      plateCollection.xFlow,
+                                                      plateCollection.yFlow,
+                                                      plateCollection.zFlow,
+                                                      resolution=3,
+                                                      scale_factor=0.02,
+                                                      color=(1, 1, 1),
+                                                      mode='arrow')  # arrow #cone
+                '''
+                self.flowObj = Visualization.VisualizeFlow(1.02 * world.vertices,
+                                                      plateCollection.xFlow,
+                                                      plateCollection.yFlow,
+                                                      plateCollection.zFlow,
+                                                      world.faces,
+                                                      newFigure=False,
+                                                      arrowColor=(1, 1, 1),
+                                                      sizeFactor=0.02)
+                '''
+
+                #self.scene.mlab
 
 
-    def animate_sleep(x):
-        n_steps = int(x / 0.01)
-        for i in range(n_steps):
-            time.sleep(0.01)
-            #help(wx.Yield)
-            wx.YieldIfNeeded()
+        # -----------------------------------------------------------------------------
+        # Wx Code
+        import wx
 
-    for i in range(5):
-        animate_sleep(1)
+
+        class MainWindow(wx.Frame):
+
+            def __init__(self, parent, id):
+                wx.Frame.__init__(self, parent, id, 'Mayavi in Wx')
+                self.mayavi_view = MayaviView()
+                # Use traits to create a panel, and use it as the content of this
+                # wx frame.
+                self.control = self.mayavi_view.edit_traits(
+                    parent=self,
+                    kind='subpanel').control
+                self.Show(True)
+
+
+        #app = wx.PySimpleApp()
+        app = wx.App()
+        frame = MainWindow(None, wx.ID_ANY)
+        app.MainLoop()
+        quit()
+
+
+
+    if False:
+        import time
+        import numpy as np
+        from mayavi import mlab
+        import wx
 
         V = np.random.randn(20, 20, 20)
+        f = mlab.figure()
+        s = mlab.contour3d(V, contours=[0])
 
-        # Update the plot with the new information
-        s.mlab_source.set(scalars=V)
-    quit()
+
+        def animate_sleep(x):
+            n_steps = int(x / 0.01)
+            for i in range(n_steps):
+                time.sleep(0.01)
+                #help(wx.Yield)
+                wx.YieldIfNeeded()
+
+        for i in range(5):
+            animate_sleep(1)
+
+            V = np.random.randn(20, 20, 20)
+
+            # Update the plot with the new information
+            s.mlab_source.set(scalars=V)
+        quit()
 
 
 
@@ -921,41 +998,41 @@ if True:
                 :return:
                 '''
 
-                import wx
+                if False:
+                    import wx
+                    def animate_sleep(x):
+                        n_steps = int(x / 0.01)
+                        for i in range(n_steps):
+                            time.sleep(0.01)
+                            wx.Yield()
 
-                def animate_sleep(x):
-                    n_steps = int(x / 0.01)
-                    for i in range(n_steps):
-                        time.sleep(0.01)
-                        wx.Yield()
-
-                for i in range(10):
-                    animate_sleep(1)
-
-                    self.flowVisibility = 1.0 - self.flowVisibility
-                    print(self.flowVisibility)
-                    self.flowObj.mayaviFlowObject.mlab_source.set(
-                        x=(self.flowVisibility + 0.02) * world.vertices[:, 0],
-                        y=(self.flowVisibility + 0.02) * world.vertices[:, 1],
-                        z=(self.flowVisibility + 0.02) * world.vertices[:, 2])
-
-
-                '''
-                @mlab.show
-                @mlab.animate()
-                def anim_flow():
                     for i in range(10):
+                        animate_sleep(1)
+
                         self.flowVisibility = 1.0 - self.flowVisibility
                         print(self.flowVisibility)
                         self.flowObj.mayaviFlowObject.mlab_source.set(
                             x=(self.flowVisibility + 0.02) * world.vertices[:, 0],
                             y=(self.flowVisibility + 0.02) * world.vertices[:, 1],
                             z=(self.flowVisibility + 0.02) * world.vertices[:, 2])
-                        yield
 
 
-                anim_flow()
-                '''
+                if True:
+                    @mlab.show
+                    @mlab.animate(ui=False)
+                    def anim_flow():
+                        for i in range(10):
+                            self.flowVisibility = 1.0 - self.flowVisibility
+                            print(self.flowVisibility)
+                            self.flowObj.mayaviFlowObject.mlab_source.set(
+                                x=(self.flowVisibility + 0.02) * world.vertices[:, 0],
+                                y=(self.flowVisibility + 0.02) * world.vertices[:, 1],
+                                z=(self.flowVisibility + 0.02) * world.vertices[:, 2])
+                            yield
+
+
+                    anim_flow()
+
                 #self.flowVisibility = 1.0 - self.flowVisibility
                 #print(self.flowVisibility)
                 #self.flowObj.mayaviFlowObject.mlab_source.set(x = (self.flowVisibility + 0.02) * world.vertices[:, 0],
