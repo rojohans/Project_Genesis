@@ -662,11 +662,11 @@ if True:
                         #self.mayaviScene.mlab.draw()
 
 
-                        tic = time.perf_counter()
-                        while True:
-                            toc = time.perf_counter()
-                            if toc-tic > 1:
-                                break
+                        #tic = time.perf_counter()
+                        #while True:
+                        #    toc = time.perf_counter()
+                        #    if toc-tic > 1:
+                        #        break
 
                         #time.sleep(1)
                         #yield
