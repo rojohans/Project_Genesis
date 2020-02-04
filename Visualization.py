@@ -237,43 +237,63 @@ class VisualizeGlobe():
             #print(np.shape(lut))
             self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
 
-def VisualizeTubes(vertices, lines, scalars = None, customColorMap = None, tubeRadius = 0.003, tubeSides = 3, scene = None):
-    '''
-    Unclear if this should be a method or a class, simpler with method but possibly more powerful with a class.
+class VisualizeTubes():
+    def __init__(self, vertices, lines, scalars = None, customColorMap = None, tubeRadius = 0.003, tubeSides = 3, scene = None):
+        '''
+        The entire created pipeline should be available as attributes.
 
-    :param vertices: (N, 3) nparray
-        An array of (x, y, z) points. N: # points.
-    :param lines: (M, 2) nparray
-        An array of connections (pi, pj). M: # lines.
-    :param scalars: (N, 1) nparray
-        An array of values in the range [0, 255]. These values will be used to set the colour of each tube.
-    :param customColorMap: (256, 3) nparray
-        An array containing values in the range [0, 255].
-    :return:
-    '''
+        :param vertices: (N, 3) nparray
+            An array of (x, y, z) points. N: # points.
+        :param lines: (M, 2) nparray
+            An array of connections (pi, pj). M: # lines.
+        :param scalars: (N, 1) nparray
+            An array of values in the range [0, 255]. These values will be used to set the colour of each tube.
+        :param customColorMap: (256, 3) nparray
+            An array containing values in the range [0, 255].
+        :return:
+        '''
 
-    # Creates the polydata.
-    mesh = tvtk.PolyData(points=vertices, lines = lines)
+        # Creates the polydata.
+        self.mesh = tvtk.PolyData(points=vertices, lines = lines)
 
-    if scalars is not None:
-        mesh.point_data.scalars = scalars
-        mesh.point_data.scalars.name = 'scalars'
+        if scalars is not None:
+            self.mesh.point_data.scalars = scalars
+            self.mesh.point_data.scalars.name = 'scalars'
 
-    # Translates the polydata into tubes and displays them as a surface.
-    tube = mlab.pipeline.tube(mesh, tube_radius = tubeRadius, tube_sides = tubeSides)
-    tube.filter.radius_factor = 1.
-    if scene is None:
-        tubeSurface = mlab.pipeline.surface(tube)
-    else:
-        tubeSurface = scene.mlab.pipeline.surface(tube)
+        # Translates the polydata into tubes and displays them as a surface.
+        self.tube = mlab.pipeline.tube(self.mesh, tube_radius = tubeRadius, tube_sides = tubeSides)
+        self.tube.filter.radius_factor = 1.
+        if scene is None:
+            self.tubeSurface = mlab.pipeline.surface(self.tube)
+        else:
+            self.tubeSurface = scene.mlab.pipeline.surface(self.tube)
 
-    # Changes the colormap.
-    if customColorMap is not None:
-        lut = tubeSurface.module_manager.scalar_lut_manager.lut.table.to_array()
-        lut[:, 0:3] = customColorMap
-        tubeSurface.module_manager.scalar_lut_manager.lut.table = lut
+        # Changes the colormap.
+        if customColorMap is not None:
+            lut = self.tubeSurface.module_manager.scalar_lut_manager.lut.table.to_array()
+            lut[:, 0:3] = customColorMap
+            self.tubeSurface.module_manager.scalar_lut_manager.lut.table = lut
+        #help(mlab.pipeline.surface)
+        #help(tubeSurface)
+        #a = dir(tubeSurface)
+        #help(tubeSurface.set)
+        #a = dir(tubeSurface.actor)
+        #print(a)
+        #quit()
+        #actor.sources
+        #configure_source_data
+        #help(tubeSurface.actor)
+        #help(tubeSurface.data)
 
-    return tubeSurface
+        #update_data(self)
+        #update_pipeline(self)
+
+        #configure_input(self, inp, op)
+        #configure_input_data(self, obj, data)
+        #configure_source_data(self, obj, data)
+
+
+        #return tubeSurface
 
 class VisualizeFlow():
     def __init__(self,
