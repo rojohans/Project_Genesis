@@ -40,6 +40,8 @@ class Plate():
 
         self.adjacentPlateIDs = []
 
+        self.borderVertex = None
+        self.borderIndex = None
 
 
 
@@ -241,6 +243,13 @@ class Plate():
                axisOfRotation = None,
                angleOfRotation = None,
                angleScaling = 1):
+        '''
+
+        :param axisOfRotation: A vector specifying the rotation, do not have to be of unit length.
+        :param angleOfRotation: The angle to rotate. If none was specified the norm of the rotation vector will be used.
+        :param angleScaling: A multiplier to the normal rotation.
+        :return:
+        '''
         avgVecNorm = None
         if axisOfRotation is None:
             avgVecNorm = Utility.VectorDistance(self.averageFlowVector, np.array([0, 0, 0]))
@@ -251,6 +260,9 @@ class Plate():
             else:
                 angleOfRotation = angleScaling * Utility.VectorDistance(axisOfRotation, np.array([0, 0, 0])) * np.pi/180
         self.vertices = Utility.RotateAroundAxis(self.vertices, axisOfRotation, angleOfRotation)
+
+        if self.borderIndex is not None:
+            self.borderVertex = self.vertices[self.borderIndex, :]
 
     def NormalizeVertices(self):
         # This might be needed if the vertices drifts away from the unit sphere due to the rotation matrix.
@@ -445,45 +457,12 @@ class Plate():
 
 
             self.borderVertex = self.vertices[visitedPoints]
+            self.borderIndex = visitedPoints
             #self.borderLines = np.vstack(
             #    [np.arange(0, np.size(self.borderVertex, 0) - 1.5),
             #     np.arange(1, np.size(self.borderVertex, 0) - .5)]
             #).T
-            #print(visitedEdges)
-            #print('=========================================================')
-            #print('=========================================================')
-            #print('=========================================================')
             return
-
-        else:
-
-            a = np.arange(0, np.size(self.borderIndex, 0))
-            self.borderLines=np.array(self.borderEdges)
-
-            #print(type(self.borderLines))
-            #quit()
-
-            #a = np.array([1, 2, 2, 1]).reshape(2, 2)
-            # palette must be given in sorted order
-            #palette = [1, 2]
-            palette = list(np.sort(self.borderIndex))
-            #print(palette)
-            # key gives the new values you wish palette to be mapped to.
-            #key = np.array([0, 10])
-            #key = a
-            index = np.digitize(self.borderLines.ravel(), palette, right=True)
-            #print(a[index].reshape(self.borderLines.shape))
-
-            c = self.borderLines.copy()
-            self.borderLines = a[index].reshape(self.borderLines.shape)
-            #print(np.append(c, self.borderLines, axis = 1))
-            #quit()
-
-
-            return
-            #print(type(self.borderLines))
-            #quit()
-
 
     def UpdateBorderKDTree(self):
         self.borderKDTree = spatial.cKDTree(self.borderVertex)

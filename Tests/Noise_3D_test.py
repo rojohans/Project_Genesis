@@ -300,95 +300,25 @@ if True:
     #        plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 1*np.pi/180)
     #    break
 
-    world4 = Templates.Templates.IcoSphereSimple(4)
-    treeResult = world.kdTree.query(world4.vertices, 1)
-
-    '''
-    import time
-    import numpy as np
-    from mayavi import mlab
-
-    f = mlab.figure()
-    V = np.random.randn(20, 20, 20)
-    s = mlab.contour3d(V, contours=[0])
-
-    @mlab.animate(delay=10, ui = False)
-    def anim():
-        i = 0
-        while i < 5:
-            time.sleep(1)
-            s.mlab_source.set(scalars=np.random.randn(20, 20, 20))
-            i += 1
-            yield
-    anim()
-    mlab.show()
-    quit()
-    '''
-
-    if False:
-        import vtk
-        import time
-        #import win32gui
-
-        def main():
-            # Create a sphere
-            sphereSource = vtk.vtkSphereSource()
-            sphereSource.SetCenter(0.0, 0.0, 0.0)
-            sphereSource.SetRadius(5)
-
-            # Create a mapper and actor
-            mapper = vtk.vtkPolyDataMapper()
-            mapper.SetInputConnection(sphereSource.GetOutputPort())
-            actor = vtk.vtkActor()
-            actor.SetMapper(mapper)
-            prop = actor.GetProperty()
-
-            # Setup a renderer, render window, and interactor
-            renderer = vtk.vtkRenderer()
-            renderWindow = vtk.vtkRenderWindow()
-
-            renderWindow.AddRenderer(renderer);
-            renderWindowInteractor = vtk.vtkRenderWindowInteractor()
-            renderWindowInteractor.SetRenderWindow(renderWindow)
-
-            # Add the actor to the scene
-            renderer.AddActor(actor)
-            renderer.SetBackground(1, 1, 1)  # Background color white
-
-            # Render and interact
-            renderWindow.Render()
-            renderWindow.SetWindowName("Basic Animation")
-
-            for i in range(100):
-                prop.SetColor(i / 10.0, 0, 0)  # Change the sphere color
-                actor.SetPosition(i - 0.1, 0, 0)  # Change the sphere position
-                renderWindow.Render()  # Redraw the scene
-                time.sleep(0.001)  # Adjust to change the speed of animation
-                #win32gui.PeekMessage(0, 0, 0, 0)  # Keep window from non-responding
-            #for i in range(10):
-            #    prop.SetColor(i / 10.0, 0, 0)  # Change the sphere color
-            #    actor.SetPosition(i - 5, 0, 0)  # Change the sphere position
-            #    renderWindow.Render()  # Redraw the scene
-            #    time.sleep(0.0001)  # Adjust to change the speed of animation
-            #    #win32gui.PeekMessage(0, 0, 0, 0)  # Keep window from non-responding
-
-            renderWindowInteractor.Start()
-
-        main()
-        quit()
+    # Author: Prabhu Ramachandran <prabhu_r@users.sf.net>
+    # Copyright (c) 2007-2015, Enthought, Inc.
+    # License: BSD Style.
 
 
+    if True:
+        # Standard library imports
+        import numpy
+        from threading import Thread
+        from time import sleep
 
-    if False:
-        from numpy import ogrid, sin
-
-        from traits.api import HasTraits, Instance
+        # Enthought library imports
+        from mayavi.scripts import mayavi2
+        from traits.api import HasTraits, Button, Instance
         from traitsui.api import View, Item
-
-        from mayavi.sources.api import ArraySource
-        from mayavi.modules.api import IsoSurface
-
-        from mayavi.core.ui.api import SceneEditor, MlabSceneModel
+        from mayavi.sources.array_source import ArraySource
+        from mayavi.modules.outline import Outline
+        from mayavi.modules.image_plane_widget import ImagePlaneWidget
+        from pyface.api import GUI
 
         from numpy import linspace, pi, cos, sin
         from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum
@@ -396,112 +326,172 @@ if True:
         from mayavi.tools.mlab_scene_model import MlabSceneModel
         from tvtk.pyface.scene_editor import SceneEditor
 
-        class MayaviView(HasTraits):
+        class ThreadedAction(Thread):
+            def __init__(self, data, **kwargs):
+                Thread.__init__(self, **kwargs)
+                self.data = data
 
-            mayaviScene = Instance(MlabSceneModel, ())
-            quit_button = Button(label='QUIT')
-
-            # The layout of the panel created by Traits
-            #view = View(Item('scene', editor=SceneEditor(), resizable=True,
-            #                 show_label=False),
-            #            resizable=True)
-            view = View(
-                Item('mayaviScene', height = 0.9, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
-                HGroup('quit_button'),
-                resizable = True)
-
-            def __init__(self):
-                HasTraits.__init__(self)
-                # Create some data, and plot it using the embedded scene's engine
-                #x, y, z = ogrid[-10:10:100j, -10:10:100j, -10:10:100j]
-                #scalars = sin(x * y * z) / (x * y * z)
-                #src = ArraySource(scalar_data=scalars)
-                #self.scene.engine.add_source(src)
-                #src.add_module(IsoSurface())
-
-                self.mayaviFlowObject = self.mayaviScene.mlab.quiver3d(1.02*world.vertices[:, 0],
-                                                      1.02*world.vertices[:, 1],
-                                                      1.02*world.vertices[:, 2],
-                                                      plateCollection.xFlow,
-                                                      plateCollection.yFlow,
-                                                      plateCollection.zFlow,
-                                                      resolution=3,
-                                                      scale_factor=0.02,
-                                                      color=(1, 1, 1),
-                                                      mode='arrow')  # arrow #cone
-                '''
-                self.flowObj = Visualization.VisualizeFlow(1.02 * world.vertices,
-                                                      plateCollection.xFlow,
-                                                      plateCollection.yFlow,
-                                                      plateCollection.zFlow,
-                                                      world.faces,
-                                                      newFigure=False,
-                                                      arrowColor=(1, 1, 1),
-                                                      sizeFactor=0.02)
-                '''
-
-                #self.scene.mlab
+            def run(self):
+                for i in range(5):
+                    print("Performing expensive calculation in %s..." % self.getName(), end=' ')
+                    sleep(2)
+                    self.data.points = np.random.rand(10, 3)
+                    #sd = self.data.scalar_data
+                    #sd += numpy.sin(numpy.random.rand(*sd.shape) * 2.0 * numpy.pi)
+                    #self.data.update()
+                    #GUI.invoke_later(self.data.update)
+                    print('done.')
 
 
-        # -----------------------------------------------------------------------------
-        # Wx Code
-        import wx
+        class Controller(HasTraits):
+            run_calculation = Button('Run calculation')
+            #data = Instance(ArraySource)
+            scene = Instance(MlabSceneModel, ())
 
+            view = View(Item('scene', editor = SceneEditor()), HGroup('run_calculation'))
 
-        class MainWindow(wx.Frame):
+            def __init__(self, p, l):
+                # Creates the polydata.
+                self.mesh = tvtk.PolyData(points=p, lines=l)
 
-            def __init__(self, parent, id):
-                wx.Frame.__init__(self, parent, id, 'Mayavi in Wx')
-                self.mayavi_view = MayaviView()
-                # Use traits to create a panel, and use it as the content of this
-                # wx frame.
-                self.control = self.mayavi_view.edit_traits(
-                    parent=self,
-                    kind='subpanel').control
-                self.Show(True)
+                # Translates the polydata into tubes and displays them as a surface.
+                self.tube = self.scene.mlab.pipeline.tube(self.mesh)
+                self.tube.filter.radius_factor = 1.
 
+                self.tubeSurface = self.scene.mlab.pipeline.surface(self.tube)
 
-        #app = wx.PySimpleApp()
-        app = wx.App()
-        frame = MainWindow(None, wx.ID_ANY)
-        app.MainLoop()
+            def _run_calculation_changed(self, value):
+                action = ThreadedAction(self.mesh)
+                action.start()
+
+        p = np.random.rand(10, 3)
+        l = np.array([[0, 3], [4, 5], [7, 2], [8, 1], [1, 4]])
+
+        #tvtk.PolyData(points = p, lines = l)
+
+        a = Controller(p, l)
+        a.configure_traits()
+        #view_numpy()
         quit()
+
+
+
+
+
+
 
 
 
     if False:
-        import time
-        import numpy as np
-        from mayavi import mlab
-        import wx
 
-        V = np.random.randn(20, 20, 20)
-        f = mlab.figure()
-        s = mlab.contour3d(V, contours=[0])
+        # Standard library imports
+        import numpy
+        from threading import Thread
+        from time import sleep
+
+        # Enthought library imports
+        from mayavi.scripts import mayavi2
+        from traits.api import HasTraits, Button, Instance
+        from traitsui.api import View, Item
+        from mayavi.sources.array_source import ArraySource
+        from mayavi.modules.outline import Outline
+        from mayavi.modules.image_plane_widget import ImagePlaneWidget
+        from pyface.api import GUI
 
 
-        def animate_sleep(x):
-            n_steps = int(x / 0.01)
-            for i in range(n_steps):
-                time.sleep(0.01)
-                #help(wx.Yield)
-                wx.YieldIfNeeded()
+        def make_data(dims=(128, 128, 128)):
+            """Creates some simple array data of the given dimensions to test
+            with."""
+            np = dims[0] * dims[1] * dims[2]
 
-        for i in range(5):
-            animate_sleep(1)
+            # Create some scalars to render.
+            x, y, z = numpy.ogrid[-5:5:dims[0] * 1j, -5:5:dims[1] * 1j, -5:5:dims[2] * 1j]
+            x = x.astype('f')
+            y = y.astype('f')
+            z = z.astype('f')
 
-            V = np.random.randn(20, 20, 20)
+            scalars = (numpy.sin(x * y * z) / (x * y * z))
+            # The copy makes the data contiguous and the transpose makes it
+            # suitable for display via tvtk.  Please note that we assume here
+            # that the ArraySource is configured to not transpose the data.
+            s = numpy.transpose(scalars).copy()
+            # Reshaping the array is needed since the transpose messes up the
+            # dimensions of the data.  The scalars themselves are ravel'd and
+            # used internally by VTK so the dimension does not matter for the
+            # scalars.
+            s.shape = s.shape[::-1]
+            return s
 
-            # Update the plot with the new information
-            s.mlab_source.set(scalars=V)
+
+        class ThreadedAction(Thread):
+            def __init__(self, data, **kwargs):
+                Thread.__init__(self, **kwargs)
+                self.data = data
+
+            def run(self):
+                for i in range(5):
+                    print("Performing expensive calculation in %s..." % self.getName(), end=' ')
+                    sleep(2)
+                    sd = self.data.scalar_data
+                    sd *= 0.001
+                    sd += numpy.sin(numpy.random.rand(*sd.shape) * 2.0 * numpy.pi)
+                    self.data.update()
+                    #GUI.invoke_later(self.data.update)
+                    print('done.')
+
+
+        class Controller(HasTraits):
+            run_calculation = Button('Run calculation')
+            data = Instance(ArraySource)
+
+            view = View(Item(name='run_calculation'))
+
+            def _run_calculation_changed(self, value):
+                action = ThreadedAction(self.data)
+                action.start()
+
+
+        @mayavi2.standalone
+        def view_numpy():
+            """Example showing how to view a 3D numpy array in mayavi2.
+            """
+            # 'mayavi' is always defined on the interpreter.
+            mayavi.new_scene()
+            # Make the data and add it to the pipeline.
+            data = make_data()
+            src = ArraySource(transpose_input_array=False)
+            src.scalar_data = data
+            mayavi.add_source(src)
+            # Visualize the data.
+            o = Outline()
+            mayavi.add_module(o)
+            ipw = ImagePlaneWidget()
+            mayavi.add_module(ipw)
+            ipw.module_manager.scalar_lut_manager.show_scalar_bar = True
+
+            ipw_y = ImagePlaneWidget()
+            mayavi.add_module(ipw_y)
+            ipw_y.ipw.plane_orientation = 'y_axes'
+
+            computation = Controller(data=src)
+            computation.edit_traits()
+
+
+        view_numpy()
         quit()
 
 
 
+
+
+
+
+    world4 = Templates.Templates.IcoSphereSimple(4)
+    treeResult = world.kdTree.query(world4.vertices, 1)
+
     for key in plateDictionary:
         plateDictionary[key].UpdateSurfaceKDTree()
 
-    # Creates a GUI.
     if True:
         tic = time.perf_counter()
         for key in plateDictionary:
@@ -517,7 +507,6 @@ if True:
                 #plate.ConnectEdgePoints(sort = False)
         toc = time.perf_counter()
         print('plate border calculating/sorting : ', toc-tic)
-
 
         tic = time.perf_counter()
         for key in plateDictionary:
@@ -599,62 +588,6 @@ if True:
         print(np.min(scalarStress))
         print(np.max(scalarStress))
 
-
-
-
-        '''
-        # Create a new mayavi scene.
-        mayavi.new_scene()
-
-        # Get the current active scene.
-        s = mayavi.engine.current_scene
-
-        # Read a data file.
-        d = mayavi.open('fire_ug.vtu')
-
-        # Import a few modules.
-        from mayavi.modules.api import Outline, IsoSurface, Streamline
-
-        # Show an outline.
-        o = Outline()
-        mayavi.add_module(o)
-        o.actor.property.color = 1, 0, 0  # red color.
-
-        # Make a few contours.
-        iso = IsoSurface()
-        mayavi.add_module(iso)
-        iso.contour.contours = [450, 570]
-        # Make them translucent.
-        iso.actor.property.opacity = 0.4
-        # Show the scalar bar (legend).
-        iso.module_manager.scalar_lut_manager.show_scalar_bar = True
-
-        # A streamline.
-        st = Streamline()
-        mayavi.add_module(st)
-        # Position the seed center.
-        st.seed.widget.center = 3.5, 0.625, 1.25
-        st.streamline_type = 'tube'
-
-        # Save the resulting image to a PNG file.
-        s.scene.save('test.png')
-
-        # Make an animation:
-        for i in range(36):
-            # Rotate the camera by 10 degrees.
-            s.scene.camera.azimuth(10)
-
-            # Resets the camera clipping plane so everything fits and then
-            # renders.
-            s.scene.reset_zoom()
-
-            # Save the scene.
-            s.scene.save_png('anim%d.png' % i)
-        mlab.show()
-        quit()
-        '''
-
-
         from numpy import linspace, pi, cos, sin
         from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum
         from traitsui.api import View, Item, HGroup
@@ -669,10 +602,8 @@ if True:
             simulate_button = Button(label = 'SIMULATE')
             surface_scalar_mode = Enum('ID', 'Interaction_Stress', 'Stress')
             mayaviScene = Instance(MlabSceneModel, ())
-            #scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
 
             flowVisibility = 1.0
-            a = 0
 
             def __init__(self, colormapRandom, colormapHeat):
                 HasTraits.__init__(self)
@@ -720,26 +651,23 @@ if True:
                                                       sizeFactor=0.03)
                 '''
 
-                '''
-                # Displays the "second border points", these are the points adjacent to the borderpoints.
-                self.secondBorder = self.mayaviScene.mlab.points3d(secondBorderVertices[:, 0],
-                                                                   secondBorderVertices[:, 1],
-                                                                   secondBorderVertices[:, 2],
-                                                                   scale_factor = 0.005)
-                self.secondBorder.glyph.scale_mode = 'scale_by_vector'
-                # The scalar needs to be in the range [0, 1]
-                self.secondBorder.mlab_source.dataset.point_data.scalars = secondBorderScalars[:, 0] / 255
-                self.secondBorder.mlab_source.dataset.point_data.scalars.name = 'secondBorderScalars'
-                lut = self.secondBorder.module_manager.scalar_lut_manager.lut.table.to_array()
-                lut[:, 0:3] = colormapRandom
-                self.secondBorder.module_manager.scalar_lut_manager.lut.table = lut
-                '''
+                if False:
+                    # Displays the "second border points", these are the points adjacent to the borderpoints.
+                    self.secondBorder = self.mayaviScene.mlab.points3d(secondBorderVertices[:, 0],
+                                                                       secondBorderVertices[:, 1],
+                                                                       secondBorderVertices[:, 2],
+                                                                       scale_factor = 0.005)
+                    self.secondBorder.glyph.scale_mode = 'scale_by_vector'
+                    # The scalar needs to be in the range [0, 1]
+                    self.secondBorder.mlab_source.dataset.point_data.scalars = secondBorderScalars[:, 0] / 255
+                    self.secondBorder.mlab_source.dataset.point_data.scalars.name = 'secondBorderScalars'
+                    lut = self.secondBorder.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = colormapRandom
+                    self.secondBorder.module_manager.scalar_lut_manager.lut.table = lut
 
-            def your_function(self, obj, event):
-                #help(obj)
-                #print(obj)
+
+            def KeyPressCallback(self, obj, event):
                 print(obj.GetKeyCode())
-                self._flow_toggle_fired()
                 #GetEventPosition(...)
                 #GetMousePosition(...)
                 #GetPicker(...)
@@ -759,32 +687,9 @@ if True:
                 self.mayaviScene.mlab.view(0, 90)
                 self.mayaviScene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
 
-                '''
-                # This code is supposed to create an override for the standard hot keys, but it doesn't work.
-                class MyInteractorStyle(tvtk.InteractorStyleUser):
-
-                    def __init__(self, parent=None):
-                        self.AddObserver("MiddleButtonPressEvent", self.middle_button_press_event)
-                        self.AddObserver("MiddleButtonReleaseEvent", self.middle_button_release_event)
-                        #self.AddObserver("KeyPressEvent", self.key_press_event)
-
-                    def middle_button_press_event(self, obj, event):
-                        print("Middle Button pressed")
-                        tvtk.InteractorStyleTerrain.OnMiddleButtonDown()
-                        return
-                    #def key_press_event(selfobj, obj, event):
-                    #    print('Howdy')
-                    #    return
-
-                    def middle_button_release_event(self, obj, event):
-                        print("Middle Button released")
-                        tvtk.InteractorStyleTerrain.OnMiddleButtonUp()
-                        return
-                self.mayaviScene.interactor.interactor_style = MyInteractorStyle()
-                
-                #self.mayaviScene.interactor.add_observer('KeyPressEvent', self.your_function, 9999.0)
+                # Enables the detection of hotkeys.
+                #self.mayaviScene.interactor.add_observer('KeyPressEvent', self.KeyPressCallback, 9999.0)
                 #self.mayaviScene.interactor.add_observer('MouseMoveEvent', mouse_move_callback)
-                '''
 
                 # The scalarbar must be created after the interactor is created, thusly it cannot be created in the
                 # constructor like all the other mayavi visualization objects.
@@ -843,31 +748,15 @@ if True:
                     lut[:, 0:3] = self.colormapRandom
                     self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
 
-                lut = self.borderObj.module_manager.scalar_lut_manager.lut.table.to_array()
+                lut = self.borderObj.tubeSurface.module_manager.scalar_lut_manager.lut.table.to_array()
                 lut[:, 0:3] = self.colormapRandom
-                self.borderObj.module_manager.scalar_lut_manager.lut.table = lut
+                self.borderObj.tubeSurface.module_manager.scalar_lut_manager.lut.table = lut
                 self.mayaviScene.mlab.draw()
 
             def _simulate_button_fired(self):
 
-                '''
-                i = 0
-                #t = time.time()
-                #max_framerate = 10
-                while 1:
-                    i += 1
-                    print(i)
-                    self._flow_toggle_fired()
-                    #while time.time() - t < (1. / max_framerate):
-                    #    pass
-                    #t = time.time()
-
-                    time.sleep(5)
-                '''
-
-
                 print('animation starts')
-                @mlab.animate(delay=500, ui = True)
+                #@mlab.animate(delay=500, ui = True)
                 def anim():
                     for iStep in range(10):
                         print(iStep)
@@ -876,27 +765,12 @@ if True:
                         for key, plate in plateDictionary.items():
                             iPlate += 1
                             if iPlate < 100:
-                                # print(plate.averageFlowVector)
-                                # print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
-                                # plate.averageFlowVector /= Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
-                                # for iPoint in range(plate.numberOfVertices):
-                                #    plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
-                                #                                                         plate.averageFlowVector, 1 * np.pi / 180)
-                                #    #plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :],
-                                #    #                                                     plate.verticesFlow[iPoint, :], 1 * np.pi / 180)
-                                # print(Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0])))
-                                # avgVecNorm = Utility.VectorDistance(plate.averageFlowVector, np.array([0, 0, 0]))
-                                # avgVec = plate.averageFlowVector / avgVecNorm
-                                # plate.vertices = Utility.RotateAroundAxis(plate.vertices, plate.averageFlowVector, 1 * np.pi / 180)
-                                # plate.vertices = Utility.RotateAroundAxis(plate.vertices, avgVec, 3*avgVecNorm * np.pi / 180)
-                                # for iPoint in range(plate.numberOfVertices):
-                                #     plate.vertices[iPoint, :] /= Utility.VectorDistance(plate.vertices[iPoint, :], np.array([0, 0, 0]))
-
-                                plate.Rotate(angleScaling=3)
-                                # plate.NormalizeVertices() # Unsure if this i needed.
-                                plate.UpdateFlow()
-                                plate.UpdateAverage()
-                                # break
+                                if plate.numberOfVertices > 4:
+                                    plate.Rotate(angleScaling=1)
+                                    # plate.NormalizeVertices() # Unsure if this i needed.
+                                    plate.UpdateFlow()
+                                    plate.UpdateAverage()
+                                    # break
                             else:
                                 break
                         # quit()
@@ -953,111 +827,55 @@ if True:
                             else:
                                 break
 
+                        #a = dir(self.borderObj.mesh)
+                        #print(a)
+                        # By changing values in the PolyData object the changes get transfered down the pipeline, and
+                        # thus the surface object is changed aswell.
+                        self.borderObj.mesh.points = borderVertices
+
                         # visObj.mayaviMeshObject.mlab_source.scalars = s
+                        #self.borderObj.actor.property.x = borderVertices[:, 0]
+
                         self.surfaceObj.mayaviMeshObject.mlab_source.x = plateVerts[:, 0]
                         self.surfaceObj.mayaviMeshObject.mlab_source.y = plateVerts[:, 1]
                         self.surfaceObj.mayaviMeshObject.mlab_source.z = plateVerts[:, 2]
 
-                        yield
+                        #self.borderObj.tubeSurface.render()
+
+                        self.mayaviScene.interactor.render()
+
+                        #self.mayaviScene.render()
+                        #self.mayaviScene.mlab.draw()
+
+
+                        #tic = time.perf_counter()
+                        #while True:
+                        #    toc = time.perf_counter()
+                        #    if toc-tic > 1:
+                        #        break
+
+                        #time.sleep(1)
+                        #yield
 
                 import mayavi
                 a = anim()
-                #self.mayaviScene.Focus()
-                #a.close()
-                #help(a)
-                #t = mayavi.tools.Animator(500, a.next)
-                #t.edit_traits()
-
-                #a.Close()
-                #help(a)
-                #quit()
-                #a.Start()
-
-                #mlab.show()
-
-                #quit()
-
-
-
-
-            def flow_change(self):
-
-                self.flowVisibility = 1.0 - self.flowVisibility
-                #print(self.flowVisibility)
-                self.flowObj.mayaviFlowObject.mlab_source.set(x = (self.flowVisibility + 0.02) * world.vertices[:, 0],
-                                                              y = (self.flowVisibility + 0.02) * world.vertices[:, 1],
-                                                              z = (self.flowVisibility + 0.02) * world.vertices[:, 2])
-
-                #pts.mlab_source.reset(x=_x, y=_y, z=_z, )
-                #yield
-                #self.mayaviScene.draw()
 
             def _flow_toggle_fired(self):
                 '''
                 Moves the flowfield inside/outside of the sphere, thus making it visible/unvisible to the user.
                 :return:
                 '''
-
-                if False:
-                    import wx
-                    def animate_sleep(x):
-                        n_steps = int(x / 0.01)
-                        for i in range(n_steps):
-                            time.sleep(0.01)
-                            wx.Yield()
-
-                    for i in range(10):
-                        animate_sleep(1)
-
-                        self.flowVisibility = 1.0 - self.flowVisibility
-                        print(self.flowVisibility)
-                        self.flowObj.mayaviFlowObject.mlab_source.set(
-                            x=(self.flowVisibility + 0.02) * world.vertices[:, 0],
-                            y=(self.flowVisibility + 0.02) * world.vertices[:, 1],
-                            z=(self.flowVisibility + 0.02) * world.vertices[:, 2])
-
-
-                if True:
-                    @mlab.show
-                    @mlab.animate(ui=False)
-                    def anim_flow():
-                        for i in range(10):
-                            self.flowVisibility = 1.0 - self.flowVisibility
-                            print(self.flowVisibility)
-                            self.flowObj.mayaviFlowObject.mlab_source.set(
-                                x=(self.flowVisibility + 0.02) * world.vertices[:, 0],
-                                y=(self.flowVisibility + 0.02) * world.vertices[:, 1],
-                                z=(self.flowVisibility + 0.02) * world.vertices[:, 2])
-                            yield
-
-
-                    anim_flow()
-
-                #self.flowVisibility = 1.0 - self.flowVisibility
-                #print(self.flowVisibility)
-                #self.flowObj.mayaviFlowObject.mlab_source.set(x = (self.flowVisibility + 0.02) * world.vertices[:, 0],
-                #                                              y = (self.flowVisibility + 0.02) * world.vertices[:, 1],
-                #                                              z = (self.flowVisibility + 0.02) * world.vertices[:, 2])
-                '''
-                    #self.mayaviScene.reset_zoom()
-                    #time.sleep(5)
-                if self.a < 10:
-                    #print(a)
-                    self.a += 1
-                    self._flow_toggle_fired()
-                    time.sleep(5)
-                else:
-                    self.a = 0
-                    print('-------')
-                    return
-                '''
-
+                self.flowVisibility = 1.0 - self.flowVisibility
+                print(self.flowVisibility)
+                self.flowObj.mayaviFlowObject.mlab_source.set(x = (self.flowVisibility + 0.02) * world.vertices[:, 0],
+                                                              y = (self.flowVisibility + 0.02) * world.vertices[:, 1],
+                                                              z = (self.flowVisibility + 0.02) * world.vertices[:, 2])
 
             def _quit_button_fired(self):
                 quit()
 
             view = View(
-                Item('mayaviScene', height = 0.9, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
+                Item('mayaviScene', height = 800, width = 1440, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
                 HGroup('simulate_button', 'flow_toggle', 'surface_scalar_mode', 'randomize_plate_colours', 'quit_button'),
                 resizable = True)
         print('>------------------------------<')

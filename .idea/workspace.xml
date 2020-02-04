@@ -2,10 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="95eb631d-f428-432d-8179-131f3e079711" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/Project_Genesis.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Project_Genesis.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Simulation/PlateDynamics.py" beforeDir="false" afterPath="$PROJECT_DIR$/Simulation/PlateDynamics.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Tests/Noise_3D_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/Tests/Noise_3D_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/Visualization.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,8 +31,8 @@
           <file pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/Tests/Noise_3D_test.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="36">
-                  <caret line="1021" column="42" selection-start-line="1021" selection-start-column="42" selection-end-line="1021" selection-end-column="42" />
+                <state relative-caret-position="342">
+                  <caret line="328" column="37" lean-forward="true" selection-start-line="328" selection-start-column="37" selection-end-line="328" selection-end-column="37" />
                   <folding>
                     <element signature="e#0#18#0" expanded="true" />
                   </folding>
@@ -52,7 +52,7 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/Movies/Create_Video.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="240">
+                <state relative-caret-position="288">
                   <caret line="19" selection-start-line="19" selection-end-line="19" />
                 </state>
               </provider>
@@ -89,8 +89,8 @@
           <file pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/Visualization.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="1904">
-                  <caret line="283" column="40" lean-forward="true" selection-start-line="283" selection-start-column="40" selection-end-line="283" selection-end-column="40" />
+                <state relative-caret-position="390">
+                  <caret line="276" column="26" lean-forward="true" selection-start-line="276" selection-start-column="26" selection-end-line="276" selection-end-column="26" />
                   <folding>
                     <element signature="e#0#73#0" expanded="true" />
                   </folding>
@@ -101,8 +101,8 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/Simulation/PlateDynamics.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="156">
-                  <caret line="111" column="19" selection-start-line="111" selection-start-column="19" selection-end-line="111" selection-end-column="19" />
+                <state relative-caret-position="1760">
+                  <caret line="113" column="19" selection-start-line="113" selection-start-column="19" selection-end-line="113" selection-end-column="19" />
                   <folding>
                     <element signature="e#0#18#0" expanded="true" />
                   </folding>
@@ -177,7 +177,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -207,6 +206,7 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
       <pane id="Scratches" />
     </panes>
   </component>
@@ -694,7 +694,13 @@
       <option name="project" value="LOCAL" />
       <updated>1580732960196</updated>
     </task>
-    <option name="localTasksCounter" value="45" />
+    <task id="LOCAL−00045" summary="picker object added">
+      <created>1580758879486</created>
+      <option name="number" value="LOCAL−00045" />
+      <option name="presentableId" value="LOCAL−00045" />
+      <updated>1580758879486</updated>
+    </task>
+    <option name="localTasksCounter" value="46" />
     <servers />
   </component>
   <component name="TodoView">
@@ -708,19 +714,20 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-4" y="-4" width="1928" height="1044" extended-state="6" />
+    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.017377567" />
       <window_info id="Structure" order="1" weight="0.24964131" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" sideWeight="0.48637015" weight="0.31172413" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.5387046" visible="true" weight="0.44276458" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.53817797" visible="true" weight="0.44276458" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.15862069" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.49713057" weight="0.32952926" />
       <window_info anchor="bottom" id="Terminal" order="7" />
-      <window_info anchor="bottom" id="Event Log" order="8" sideWeight="0.46129543" side_tool="true" visible="true" weight="0.44276458" />
+      <window_info anchor="bottom" id="Event Log" order="8" sideWeight="0.461822" side_tool="true" visible="true" weight="0.44276458" />
       <window_info anchor="bottom" id="Version Control" order="9" sideWeight="0.47604004" weight="0.15226781" />
       <window_info anchor="bottom" id="Python Console" order="10" sideWeight="0.4913917" weight="0.3281027" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
@@ -807,57 +814,37 @@
     <option name="LAST_COMMIT_MESSAGE" value="picker object added" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="320" y="105" key="#Inspections" timestamp="1579730307163">
-      <screen x="0" y="22" width="1440" height="874" />
-    </state>
-    <state x="320" y="105" key="#Inspections/0.22.1440.874@0.22.1440.874" timestamp="1579730307162" />
-    <state x="353" y="42" key="CommitChangelistDialog2" timestamp="1580733096103">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state x="353" y="42" key="CommitChangelistDialog2/0.23.1440.873@0.23.1440.873" timestamp="1580733096103" />
-    <state x="104" y="207" key="FileChooserDialogImpl" timestamp="1578388371837">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state x="104" y="207" key="FileChooserDialogImpl/0.23.1440.873@0.23.1440.873" timestamp="1578388371837" />
-    <state width="732" height="376" key="GridCell.Tab.0.bottom" timestamp="1580730400532">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state width="732" height="294" key="GridCell.Tab.0.bottom/0.22.1440.874@0.22.1440.874" timestamp="1580682641695" />
-    <state width="732" height="376" key="GridCell.Tab.0.bottom/0.23.1440.873@0.23.1440.873" timestamp="1580730400532" />
-    <state width="732" height="376" key="GridCell.Tab.0.center" timestamp="1580730400531">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state width="732" height="294" key="GridCell.Tab.0.center/0.22.1440.874@0.22.1440.874" timestamp="1580682641694" />
-    <state width="732" height="376" key="GridCell.Tab.0.center/0.23.1440.873@0.23.1440.873" timestamp="1580730400531" />
-    <state width="732" height="376" key="GridCell.Tab.0.left" timestamp="1580730400530">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state width="732" height="294" key="GridCell.Tab.0.left/0.22.1440.874@0.22.1440.874" timestamp="1580682641694" />
-    <state width="732" height="376" key="GridCell.Tab.0.left/0.23.1440.873@0.23.1440.873" timestamp="1580730400530" />
-    <state width="732" height="376" key="GridCell.Tab.0.right" timestamp="1580730400532">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state width="732" height="294" key="GridCell.Tab.0.right/0.22.1440.874@0.22.1440.874" timestamp="1580682641695" />
-    <state width="732" height="376" key="GridCell.Tab.0.right/0.23.1440.873@0.23.1440.873" timestamp="1580730400532" />
-    <state x="173" y="49" key="SettingsEditor" timestamp="1580727182464">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state x="173" y="48" key="SettingsEditor/0.22.1440.874@0.22.1440.874" timestamp="1579626941262" />
-    <state x="173" y="49" key="SettingsEditor/0.23.1440.873@0.23.1440.873" timestamp="1580727182464" />
-    <state x="320" y="168" key="Vcs.Push.Dialog.v2" timestamp="1580733101184">
-      <screen x="0" y="23" width="1440" height="873" />
-    </state>
-    <state x="320" y="168" key="Vcs.Push.Dialog.v2/0.23.1440.873@0.23.1440.873" timestamp="1580733101184" />
-    <state x="385" y="202" width="670" height="676" key="search.everywhere.popup" timestamp="1579383199542">
-      <screen x="0" y="22" width="1440" height="874" />
-    </state>
-    <state x="385" y="202" width="670" height="676" key="search.everywhere.popup/0.22.1440.874@0.22.1440.874" timestamp="1579383199542" />
+    <state x="320" y="105" key="#Inspections" />
+    <state x="320" y="105" key="#Inspections/0.22.1440.874@0.22.1440.874" />
+    <state x="353" y="42" key="CommitChangelistDialog2" />
+    <state x="353" y="42" key="CommitChangelistDialog2/0.23.1440.873@0.23.1440.873" />
+    <state x="104" y="207" key="FileChooserDialogImpl" />
+    <state x="104" y="207" key="FileChooserDialogImpl/0.23.1440.873@0.23.1440.873" />
+    <state width="732" height="376" key="GridCell.Tab.0.bottom" />
+    <state width="732" height="294" key="GridCell.Tab.0.bottom/0.22.1440.874@0.22.1440.874" />
+    <state width="732" height="376" key="GridCell.Tab.0.bottom/0.23.1440.873@0.23.1440.873" />
+    <state width="732" height="376" key="GridCell.Tab.0.center" />
+    <state width="732" height="294" key="GridCell.Tab.0.center/0.22.1440.874@0.22.1440.874" />
+    <state width="732" height="376" key="GridCell.Tab.0.center/0.23.1440.873@0.23.1440.873" />
+    <state width="732" height="376" key="GridCell.Tab.0.left" />
+    <state width="732" height="294" key="GridCell.Tab.0.left/0.22.1440.874@0.22.1440.874" />
+    <state width="732" height="376" key="GridCell.Tab.0.left/0.23.1440.873@0.23.1440.873" />
+    <state width="732" height="376" key="GridCell.Tab.0.right" />
+    <state width="732" height="294" key="GridCell.Tab.0.right/0.22.1440.874@0.22.1440.874" />
+    <state width="732" height="376" key="GridCell.Tab.0.right/0.23.1440.873@0.23.1440.873" />
+    <state x="173" y="49" key="SettingsEditor" />
+    <state x="173" y="48" key="SettingsEditor/0.22.1440.874@0.22.1440.874" />
+    <state x="173" y="49" key="SettingsEditor/0.23.1440.873@0.23.1440.873" />
+    <state x="320" y="168" key="Vcs.Push.Dialog.v2" />
+    <state x="320" y="168" key="Vcs.Push.Dialog.v2/0.23.1440.873@0.23.1440.873" />
+    <state x="385" y="202" width="670" height="676" key="search.everywhere.popup" />
+    <state x="385" y="202" width="670" height="676" key="search.everywhere.popup/0.22.1440.874@0.22.1440.874" />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/Simulation/PlateDynamics.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="156">
-          <caret line="111" column="19" selection-start-line="111" selection-start-column="19" selection-end-line="111" selection-end-column="19" />
+        <state relative-caret-position="1760">
+          <caret line="113" column="19" selection-start-line="113" selection-start-column="19" selection-end-line="113" selection-end-column="19" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
@@ -866,8 +853,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Visualization.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1904">
-          <caret line="283" column="40" lean-forward="true" selection-start-line="283" selection-start-column="40" selection-end-line="283" selection-end-column="40" />
+        <state relative-caret-position="390">
+          <caret line="276" column="26" lean-forward="true" selection-start-line="276" selection-start-column="26" selection-end-line="276" selection-end-column="26" />
           <folding>
             <element signature="e#0#73#0" expanded="true" />
           </folding>
@@ -876,8 +863,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Tests/Noise_3D_test.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="36">
-          <caret line="1021" column="42" selection-start-line="1021" selection-start-column="42" selection-end-line="1021" selection-end-column="42" />
+        <state relative-caret-position="342">
+          <caret line="328" column="37" lean-forward="true" selection-start-line="328" selection-start-column="37" selection-end-line="328" selection-end-column="37" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
