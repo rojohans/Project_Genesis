@@ -305,7 +305,7 @@ if True:
     # License: BSD Style.
 
 
-    if True:
+    if False:
         # Standard library imports
         import numpy
         from threading import Thread
@@ -373,113 +373,6 @@ if True:
         a.configure_traits()
         #view_numpy()
         quit()
-
-
-
-
-
-
-
-
-
-    if False:
-
-        # Standard library imports
-        import numpy
-        from threading import Thread
-        from time import sleep
-
-        # Enthought library imports
-        from mayavi.scripts import mayavi2
-        from traits.api import HasTraits, Button, Instance
-        from traitsui.api import View, Item
-        from mayavi.sources.array_source import ArraySource
-        from mayavi.modules.outline import Outline
-        from mayavi.modules.image_plane_widget import ImagePlaneWidget
-        from pyface.api import GUI
-
-
-        def make_data(dims=(128, 128, 128)):
-            """Creates some simple array data of the given dimensions to test
-            with."""
-            np = dims[0] * dims[1] * dims[2]
-
-            # Create some scalars to render.
-            x, y, z = numpy.ogrid[-5:5:dims[0] * 1j, -5:5:dims[1] * 1j, -5:5:dims[2] * 1j]
-            x = x.astype('f')
-            y = y.astype('f')
-            z = z.astype('f')
-
-            scalars = (numpy.sin(x * y * z) / (x * y * z))
-            # The copy makes the data contiguous and the transpose makes it
-            # suitable for display via tvtk.  Please note that we assume here
-            # that the ArraySource is configured to not transpose the data.
-            s = numpy.transpose(scalars).copy()
-            # Reshaping the array is needed since the transpose messes up the
-            # dimensions of the data.  The scalars themselves are ravel'd and
-            # used internally by VTK so the dimension does not matter for the
-            # scalars.
-            s.shape = s.shape[::-1]
-            return s
-
-
-        class ThreadedAction(Thread):
-            def __init__(self, data, **kwargs):
-                Thread.__init__(self, **kwargs)
-                self.data = data
-
-            def run(self):
-                for i in range(5):
-                    print("Performing expensive calculation in %s..." % self.getName(), end=' ')
-                    sleep(2)
-                    sd = self.data.scalar_data
-                    sd *= 0.001
-                    sd += numpy.sin(numpy.random.rand(*sd.shape) * 2.0 * numpy.pi)
-                    self.data.update()
-                    #GUI.invoke_later(self.data.update)
-                    print('done.')
-
-
-        class Controller(HasTraits):
-            run_calculation = Button('Run calculation')
-            data = Instance(ArraySource)
-
-            view = View(Item(name='run_calculation'))
-
-            def _run_calculation_changed(self, value):
-                action = ThreadedAction(self.data)
-                action.start()
-
-
-        @mayavi2.standalone
-        def view_numpy():
-            """Example showing how to view a 3D numpy array in mayavi2.
-            """
-            # 'mayavi' is always defined on the interpreter.
-            mayavi.new_scene()
-            # Make the data and add it to the pipeline.
-            data = make_data()
-            src = ArraySource(transpose_input_array=False)
-            src.scalar_data = data
-            mayavi.add_source(src)
-            # Visualize the data.
-            o = Outline()
-            mayavi.add_module(o)
-            ipw = ImagePlaneWidget()
-            mayavi.add_module(ipw)
-            ipw.module_manager.scalar_lut_manager.show_scalar_bar = True
-
-            ipw_y = ImagePlaneWidget()
-            mayavi.add_module(ipw_y)
-            ipw_y.ipw.plane_orientation = 'y_axes'
-
-            computation = Controller(data=src)
-            computation.edit_traits()
-
-
-        view_numpy()
-        quit()
-
 
 
 
@@ -590,16 +483,112 @@ if True:
 
         from numpy import linspace, pi, cos, sin
         from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum
-        from traitsui.api import View, Item, HGroup
+        from traitsui.api import View, Item, VGroup, HGroup
         from mayavi.tools.mlab_scene_model import MlabSceneModel
         from tvtk.pyface.scene_editor import SceneEditor
+
+        from threading import Thread
+
+        class ThreadedAction(Thread):
+            def __init__(self, scene, borderData, surfaceMlabSource, **kwargs):
+                Thread.__init__(self, **kwargs)
+                self.scene = scene
+                self.borderData = borderData
+                self.surfaceMlabSource = surfaceMlabSource
+
+            def run(self):
+                '''
+                Runs the simulation for a set number of steps.
+                :return:
+                '''
+                for iStep in range(100):
+                    print(iStep)
+                    # s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
+                    iPlate = -1
+                    for key, plate in plateDictionary.items():
+                        iPlate += 1
+                        if iPlate < 100:
+                            if plate.numberOfVertices > 4:
+                                plate.Rotate(angleScaling=0.1)
+                                # plate.NormalizeVertices() # Unsure if this i needed.
+                                plate.UpdateFlow()
+                                plate.UpdateAverage()
+                        else:
+                            break
+                    nPoints = 0
+                    iPlate = -1
+                    borderIndex = 0
+                    for key, plate in plateDictionary.items():
+                        iPlate += 1
+                        if iPlate < 100:
+                            if plate.numberOfVertices > 4:
+                                # plateVerts.append(plate.vertices)
+                                nBorderPoints = np.size(plate.borderVertex, 0)
+                                if iPlate == 0:
+                                    plateVerts = plate.vertices
+                                    plateFaces = plate.triangles
+                                    meshScalarsID = plate.ID * np.ones((plate.numberOfVertices, 1))
+                                    meshScalarsNumber = iPlate * np.ones((plate.numberOfVertices, 1))
+                                    scalarStress = plate.stressVector
+                                    scalarInteractionStress = plate.interactionStress
+                                    borderVertices = plate.borderVertex
+                                    borderLines = plate.borderLines
+                                    borderScalars = iPlate * np.ones((nBorderPoints, 1))
+                                    secondBorderScalars = iPlate * np.ones(
+                                        (np.size(plate.secondBorderIndices, 0), 1))
+                                    secondBorderVertices = plate.secondBorderPoints
+                                else:
+                                    plateVerts = np.append(plateVerts, plate.vertices, axis=0)
+                                    plateFaces = np.append(plateFaces, plate.triangles + nPoints, axis=0)
+                                    meshScalarsID = np.append(meshScalarsID,
+                                                              plate.ID * np.ones((plate.numberOfVertices, 1)),
+                                                              axis=0)
+                                    meshScalarsNumber = np.append(meshScalarsNumber,
+                                                                  iPlate * np.ones((plate.numberOfVertices, 1)),
+                                                                  axis=0)
+                                    scalarStress = np.append(scalarStress, plate.stressVector, axis=0)
+                                    scalarInteractionStress = np.append(scalarInteractionStress,
+                                                                        plate.interactionStress, axis=0)
+
+                                    borderVertices = np.append(borderVertices, plate.borderVertex, axis=0)
+                                    borderLines = np.append(borderLines, borderIndex + plate.borderLines, axis=0)
+                                    borderScalars = np.append(borderScalars, iPlate * np.ones((nBorderPoints, 1)),
+                                                              axis=0)
+                                    secondBorderScalars = np.append(secondBorderScalars,
+                                                                    iPlate * np.ones(
+                                                                        (np.size(plate.secondBorderIndices, 0), 1)),
+                                                                    axis=0)
+                                    secondBorderVertices = np.append(secondBorderVertices, plate.secondBorderPoints,
+                                                                     axis=0)
+                                nPoints += plate.numberOfVertices
+                                borderIndex += nBorderPoints
+                        else:
+                            break
+
+
+                    # Setting scene.disable_render = True/False makes it such that the scene is not rendered until all
+                    # the changes has been made. Without doing this the surface will be updated before the border is
+                    # update. Thus 2 renders are performed, whih is bad for performance.
+                    self.scene.disable_render = True
+
+                    self.surfaceMlabSource.set(x = plateVerts[:, 0],
+                                               y = plateVerts[:, 1],
+                                               z = plateVerts[:, 2])
+
+                    self.borderData.points = borderVertices
+                    self.scene.disable_render = False
+
+                    #time.sleep(2)
+
+
 
         class MayaviWindow(HasTraits):
             #n_turns = Range(0, 30, 11)
             flow_toggle = Button(label = 'Toggle Flow On/Off')
             randomize_plate_colours = Button()
             quit_button = Button(label = 'QUIT')
-            simulate_button = Button(label = 'SIMULATE')
+            simulate_start_button = Button(label = 'RUN')
+            simulate_stop_button = Button(label = 'STOP')
             surface_scalar_mode = Enum('ID', 'Interaction_Stress', 'Stress')
             mayaviScene = Instance(MlabSceneModel, ())
 
@@ -687,6 +676,10 @@ if True:
                 self.mayaviScene.mlab.view(0, 90)
                 self.mayaviScene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
 
+                help(self.mayaviScene.interactor)
+                a = dir(self.mayaviScene.interactor)
+                print(a)
+
                 # Enables the detection of hotkeys.
                 #self.mayaviScene.interactor.add_observer('KeyPressEvent', self.KeyPressCallback, 9999.0)
                 #self.mayaviScene.interactor.add_observer('MouseMoveEvent', mouse_move_callback)
@@ -753,112 +746,17 @@ if True:
                 self.borderObj.tubeSurface.module_manager.scalar_lut_manager.lut.table = lut
                 self.mayaviScene.mlab.draw()
 
-            def _simulate_button_fired(self):
+            def _simulate_start_button_fired(self):
+                '''
+                The animation loop is run in a different thread, this enables the user to interact with the scene while
+                it is being animated.
+                :return:
+                '''
+                action = ThreadedAction(self.mayaviScene, self.borderObj.mesh, self.surfaceObj.mayaviMeshObject.mlab_source)
+                action.start()
 
-                print('animation starts')
-                #@mlab.animate(delay=500, ui = True)
-                def anim():
-                    for iStep in range(10):
-                        print(iStep)
-                        # s.mlab_source.scalars = np.asarray(x * 0.1 * (i + 1), 'd')
-                        iPlate = -1
-                        for key, plate in plateDictionary.items():
-                            iPlate += 1
-                            if iPlate < 100:
-                                if plate.numberOfVertices > 4:
-                                    plate.Rotate(angleScaling=1)
-                                    # plate.NormalizeVertices() # Unsure if this i needed.
-                                    plate.UpdateFlow()
-                                    plate.UpdateAverage()
-                                    # break
-                            else:
-                                break
-                        # quit()
-                        # print('------------------------------------------------------')
-
-                        nPoints = 0
-                        iPlate = -1
-                        borderIndex = 0
-                        for key, plate in plateDictionary.items():
-                            iPlate += 1
-                            if iPlate < 100:
-                                if plate.numberOfVertices > 4:
-                                    # plateVerts.append(plate.vertices)
-                                    nBorderPoints = np.size(plate.borderVertex, 0)
-                                    if iPlate == 0:
-                                        plateVerts = plate.vertices
-                                        plateFaces = plate.triangles
-                                        meshScalarsID = plate.ID * np.ones((plate.numberOfVertices, 1))
-                                        meshScalarsNumber = iPlate * np.ones((plate.numberOfVertices, 1))
-                                        scalarStress = plate.stressVector
-                                        scalarInteractionStress = plate.interactionStress
-                                        # meshScalarsNumber = plate.ID * np.ones((plate.numberOfVertices, 1))
-                                        borderVertices = plate.borderVertex
-                                        borderLines = plate.borderLines
-                                        borderScalars = iPlate * np.ones((nBorderPoints, 1))
-                                        secondBorderScalars = iPlate * np.ones(
-                                            (np.size(plate.secondBorderIndices, 0), 1))
-                                        secondBorderVertices = plate.secondBorderPoints
-                                    else:
-                                        plateVerts = np.append(plateVerts, plate.vertices, axis=0)
-                                        plateFaces = np.append(plateFaces, plate.triangles + nPoints, axis=0)
-                                        meshScalarsID = np.append(meshScalarsID,
-                                                                  plate.ID * np.ones((plate.numberOfVertices, 1)),
-                                                                  axis=0)
-                                        meshScalarsNumber = np.append(meshScalarsNumber,
-                                                                      iPlate * np.ones((plate.numberOfVertices, 1)),
-                                                                      axis=0)
-                                        scalarStress = np.append(scalarStress, plate.stressVector, axis=0)
-                                        scalarInteractionStress = np.append(scalarInteractionStress,
-                                                                            plate.interactionStress, axis=0)
-
-                                        borderVertices = np.append(borderVertices, plate.borderVertex, axis=0)
-                                        borderLines = np.append(borderLines, borderIndex + plate.borderLines, axis=0)
-                                        borderScalars = np.append(borderScalars, iPlate * np.ones((nBorderPoints, 1)),
-                                                                  axis=0)
-                                        secondBorderScalars = np.append(secondBorderScalars,
-                                                                        iPlate * np.ones(
-                                                                            (np.size(plate.secondBorderIndices, 0), 1)),
-                                                                        axis=0)
-                                        secondBorderVertices = np.append(secondBorderVertices, plate.secondBorderPoints,
-                                                                         axis=0)
-                                    nPoints += plate.numberOfVertices
-                                    borderIndex += nBorderPoints
-                            else:
-                                break
-
-                        #a = dir(self.borderObj.mesh)
-                        #print(a)
-                        # By changing values in the PolyData object the changes get transfered down the pipeline, and
-                        # thus the surface object is changed aswell.
-                        self.borderObj.mesh.points = borderVertices
-
-                        # visObj.mayaviMeshObject.mlab_source.scalars = s
-                        #self.borderObj.actor.property.x = borderVertices[:, 0]
-
-                        self.surfaceObj.mayaviMeshObject.mlab_source.x = plateVerts[:, 0]
-                        self.surfaceObj.mayaviMeshObject.mlab_source.y = plateVerts[:, 1]
-                        self.surfaceObj.mayaviMeshObject.mlab_source.z = plateVerts[:, 2]
-
-                        #self.borderObj.tubeSurface.render()
-
-                        self.mayaviScene.interactor.render()
-
-                        #self.mayaviScene.render()
-                        #self.mayaviScene.mlab.draw()
-
-
-                        #tic = time.perf_counter()
-                        #while True:
-                        #    toc = time.perf_counter()
-                        #    if toc-tic > 1:
-                        #        break
-
-                        #time.sleep(1)
-                        #yield
-
-                import mayavi
-                a = anim()
+            def _simulate_stop_button_fired(self):
+                pass
 
             def _flow_toggle_fired(self):
                 '''
@@ -875,9 +773,11 @@ if True:
                 quit()
 
             view = View(
-                Item('mayaviScene', height = 800, width = 1440, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
-                HGroup('simulate_button', 'flow_toggle', 'surface_scalar_mode', 'randomize_plate_colours', 'quit_button'),
-                resizable = True)
+                HGroup(
+                Item('mayaviScene', height = 900, width = 1600, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
+                VGroup(VGroup('simulate_start_button', 'simulate_stop_button', label = 'Animation'), VGroup('flow_toggle', 'surface_scalar_mode', 'randomize_plate_colours', 'quit_button', label = 'Settings'))))
+        # resolution : 1440 * 900    mac
+        # resolution : 1920 * 1080   windows
         print('>------------------------------<')
         print('>---< GUI has been created >---<')
         print('>------------------------------<')
