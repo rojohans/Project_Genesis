@@ -250,7 +250,6 @@ if False:
     mlab.show()
     quit()
 
-
 if True:
     import Root_Directory
     import System_Info
@@ -289,6 +288,11 @@ if True:
         plate.UpdateFlow()
         plate.UpdateAverage()
         plate.CalculateAdjacentPlates()
+        # The density is set to a random value in the range [2600, 3200]. The upper value corresponds to the typical
+        # oceanic plate density and the lover value correspond to the typical continental plate density. Unit : kg/m^-3
+        randomDensity = 2600 + 600 * np.random.rand()
+        plate.density = randomDensity * np.ones((plate.numberOfVertices, 1))
+        #plate.SetUniformDensity
     #    print(plate.averageFlowVector)
     #    print('----------')
     #Simulation.PlateDynamics.Plate.CheckForMerge()
@@ -299,84 +303,6 @@ if True:
     #
     #        plate.vertices[iPoint, :] = Utility.RotateAroundAxis(plate.vertices[iPoint, :], plate.averageFlowVector, 1*np.pi/180)
     #    break
-
-    # Author: Prabhu Ramachandran <prabhu_r@users.sf.net>
-    # Copyright (c) 2007-2015, Enthought, Inc.
-    # License: BSD Style.
-
-
-    if False:
-        # Standard library imports
-        import numpy
-        from threading import Thread
-        from time import sleep
-
-        # Enthought library imports
-        from mayavi.scripts import mayavi2
-        from traits.api import HasTraits, Button, Instance
-        from traitsui.api import View, Item
-        from mayavi.sources.array_source import ArraySource
-        from mayavi.modules.outline import Outline
-        from mayavi.modules.image_plane_widget import ImagePlaneWidget
-        from pyface.api import GUI
-
-        from numpy import linspace, pi, cos, sin
-        from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum
-        from traitsui.api import View, Item, HGroup
-        from mayavi.tools.mlab_scene_model import MlabSceneModel
-        from tvtk.pyface.scene_editor import SceneEditor
-
-        class ThreadedAction(Thread):
-            def __init__(self, data, **kwargs):
-                Thread.__init__(self, **kwargs)
-                self.data = data
-
-            def run(self):
-                for i in range(5):
-                    print("Performing expensive calculation in %s..." % self.getName(), end=' ')
-                    sleep(2)
-                    self.data.points = np.random.rand(10, 3)
-                    #sd = self.data.scalar_data
-                    #sd += numpy.sin(numpy.random.rand(*sd.shape) * 2.0 * numpy.pi)
-                    #self.data.update()
-                    #GUI.invoke_later(self.data.update)
-                    print('done.')
-
-
-        class Controller(HasTraits):
-            run_calculation = Button('Run calculation')
-            #data = Instance(ArraySource)
-            scene = Instance(MlabSceneModel, ())
-
-            view = View(Item('scene', editor = SceneEditor()), HGroup('run_calculation'))
-
-            def __init__(self, p, l):
-                # Creates the polydata.
-                self.mesh = tvtk.PolyData(points=p, lines=l)
-
-                # Translates the polydata into tubes and displays them as a surface.
-                self.tube = self.scene.mlab.pipeline.tube(self.mesh)
-                self.tube.filter.radius_factor = 1.
-
-                self.tubeSurface = self.scene.mlab.pipeline.surface(self.tube)
-
-            def _run_calculation_changed(self, value):
-                action = ThreadedAction(self.mesh)
-                action.start()
-
-        p = np.random.rand(10, 3)
-        l = np.array([[0, 3], [4, 5], [7, 2], [8, 1], [1, 4]])
-
-        #tvtk.PolyData(points = p, lines = l)
-
-        a = Controller(p, l)
-        a.configure_traits()
-        #view_numpy()
-        quit()
-
-
-
-
 
 
     world4 = Templates.Templates.IcoSphereSimple(4)
@@ -392,9 +318,10 @@ if True:
             if plate.numberOfVertices > 4:
                 plate.FindBorderPoints()
                 plate.ConnectBorderPoints(sort = True)
-                plate.UpdateBorderKDTree()
-
                 plate.FindSecondBorderPoints()
+
+                plate.UpdateBorderKDTree()
+                plate.UpdateSecondBorderKDTree()
 
                 #plate.UpdateSurfaceKDTree()
                 #plate.ConnectEdgePoints(sort = False)
@@ -426,6 +353,7 @@ if True:
                         plateFaces = plate.triangles
                         meshScalarsID = plate.ID * np.ones((plate.numberOfVertices, 1))
                         meshScalarsNumber = iPlate * np.ones((plate.numberOfVertices, 1))
+                        scalarDensity = plate.density
                         scalarStress = plate.stressVector
                         scalarInteractionStress = plate.interactionStress
                         # meshScalarsNumber = plate.ID * np.ones((plate.numberOfVertices, 1))
@@ -439,6 +367,7 @@ if True:
                         plateFaces = np.append(plateFaces, plate.triangles + nPoints, axis=0)
                         meshScalarsID = np.append(meshScalarsID, plate.ID * np.ones((plate.numberOfVertices, 1)), axis=0)
                         meshScalarsNumber = np.append(meshScalarsNumber, iPlate * np.ones((plate.numberOfVertices, 1)), axis=0)
+                        scalarDensity = np.append(scalarDensity, plate.density, axis=0)
                         scalarStress = np.append(scalarStress, plate.stressVector, axis=0)
                         scalarInteractionStress = np.append(scalarInteractionStress, plate.interactionStress, axis=0)
 
@@ -459,6 +388,8 @@ if True:
         colormapRandom = np.random.randint(0, 255, (256, 3))
         import Templates.Colormap.Colormap as Colormap
         colormapHeat = Colormap.LoadColormap('gist_heat')
+        colormapBrBG = Colormap.LoadColormap('BrBG')
+        #'blue-red'
 
         # Rescales scalar values to fit the colormaps.
         meshScalarsNumber /= np.max(meshScalarsNumber)
@@ -482,7 +413,7 @@ if True:
         print(np.max(scalarStress))
 
         from numpy import linspace, pi, cos, sin
-        from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum
+        from traits.api import HasTraits, Range, Instance, on_trait_change, Button, Enum, Str
         from traitsui.api import View, Item, VGroup, HGroup
         from mayavi.tools.mlab_scene_model import MlabSceneModel
         from tvtk.pyface.scene_editor import SceneEditor
@@ -490,11 +421,14 @@ if True:
         from threading import Thread
 
         class ThreadedAction(Thread):
-            def __init__(self, scene, borderData, surfaceMlabSource, **kwargs):
+            def __init__(self, scene, borderData, surfaceMlabSource, runAnimation, **kwargs):
                 Thread.__init__(self, **kwargs)
+                #UpdateSurfaceScalarMode
+                #self.UpdateSurfaceScalarMode = UpdateSurfaceScalarMode
                 self.scene = scene
                 self.borderData = borderData
                 self.surfaceMlabSource = surfaceMlabSource
+                self.runAnimation = runAnimation
 
             def run(self):
                 '''
@@ -509,8 +443,52 @@ if True:
                         iPlate += 1
                         if iPlate < 100:
                             if plate.numberOfVertices > 4:
-                                plate.Rotate(angleScaling=0.1)
-                                # plate.NormalizeVertices() # Unsure if this i needed.
+                                plate.Rotate(angleScaling=0.5)
+                        else:
+                            break
+
+
+                    iPlate = -1
+                    for key, plate in plateDictionary.items():
+                        iPlate += 1
+                        if iPlate < 100:
+                            if plate.numberOfVertices > 4:
+                                plate.CheckCollision()
+                        else:
+                            break
+
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    print('::::::::::::::::::::::::::::::::::::::::')
+                    for key in plateDictionary:
+                        plate = plateDictionary[key]
+                        if plate.numberOfVertices > 4:
+                            plate.MeshTriangulation()
+                            plate.FindBorderPoints()
+                            plate.ConnectBorderPoints(sort=True)
+                            plate.FindSecondBorderPoints()
+
+                            plate.UpdateBorderKDTree()
+                            plate.UpdateSecondBorderKDTree()
+
+                            # plate.UpdateSurfaceKDTree()
+                            # plate.ConnectEdgePoints(sort = False)
+
+
+                    #print('========================================================================')
+                    #quit()
+
+                    iPlate = -1
+                    for key, plate in plateDictionary.items():
+                        iPlate += 1
+                        if iPlate < 100:
+                            if plate.numberOfVertices > 4:
                                 plate.UpdateFlow()
                                 plate.UpdateAverage()
                         else:
@@ -529,6 +507,7 @@ if True:
                                     plateFaces = plate.triangles
                                     meshScalarsID = plate.ID * np.ones((plate.numberOfVertices, 1))
                                     meshScalarsNumber = iPlate * np.ones((plate.numberOfVertices, 1))
+                                    scalarDensity = plate.density
                                     scalarStress = plate.stressVector
                                     scalarInteractionStress = plate.interactionStress
                                     borderVertices = plate.borderVertex
@@ -546,12 +525,19 @@ if True:
                                     meshScalarsNumber = np.append(meshScalarsNumber,
                                                                   iPlate * np.ones((plate.numberOfVertices, 1)),
                                                                   axis=0)
+                                    scalarDensity = np.append(scalarDensity, plate.density, axis=0)
                                     scalarStress = np.append(scalarStress, plate.stressVector, axis=0)
                                     scalarInteractionStress = np.append(scalarInteractionStress,
                                                                         plate.interactionStress, axis=0)
 
                                     borderVertices = np.append(borderVertices, plate.borderVertex, axis=0)
-                                    borderLines = np.append(borderLines, borderIndex + plate.borderLines, axis=0)
+                                    print(np.shape(borderLines))
+                                    print(np.shape(plate.borderLines))
+                                    print(borderIndex)
+                                    print(np.size(plate.borderLines, 0))
+                                    print(' ')
+                                    if np.size(plate.borderLines, 0) > 0:
+                                        borderLines = np.append(borderLines, borderIndex + plate.borderLines, axis=0)
                                     borderScalars = np.append(borderScalars, iPlate * np.ones((nBorderPoints, 1)),
                                                               axis=0)
                                     secondBorderScalars = np.append(secondBorderScalars,
@@ -565,33 +551,61 @@ if True:
                         else:
                             break
 
+                    # Rescales scalar values to fit the colormaps.
+                    meshScalarsNumber /= np.max(meshScalarsNumber)
+                    meshScalarsNumber *= 255
+                    meshScalarsNumber = np.round(meshScalarsNumber)
+
+                    borderScalars /= np.max(borderScalars)
+                    borderScalars *= 255
+                    borderScalars = np.round(borderScalars)
+
 
                     # Setting scene.disable_render = True/False makes it such that the scene is not rendered until all
                     # the changes has been made. Without doing this the surface will be updated before the border is
                     # update. Thus 2 renders are performed, whih is bad for performance.
                     self.scene.disable_render = True
 
-                    self.surfaceMlabSource.set(x = plateVerts[:, 0],
-                                               y = plateVerts[:, 1],
-                                               z = plateVerts[:, 2])
+                    #self.surfaceMlabSource.set(x = plateVerts[:, 0],
+                    #                           y = plateVerts[:, 1],
+                    #                           z = plateVerts[:, 2])
+                    self.surfaceMlabSource.reset(x = plateVerts[:, 0],
+                                                 y = plateVerts[:, 1],
+                                                 z = plateVerts[:, 2],
+                                                 triangles = plateFaces)
+                    # give scalars as input
+                    #self.UpdateSurfaceScalarMode(surfaceScalarsID = meshScalarsNumber, surfaceScalarDensity = scalarDensity)
 
                     self.borderData.points = borderVertices
+                    self.borderData.lines = borderLines
+                    #self.borderData.point_data.scalars = borderScalars
+                    #self.borderData.point_data.scalars.name = 'borderScalars'
                     self.scene.disable_render = False
-
                     #time.sleep(2)
+
+                    print(self.runAnimation)
+                    if self.runAnimation is False:
+                        break
 
 
 
         class MayaviWindow(HasTraits):
-            #n_turns = Range(0, 30, 11)
-            flow_toggle = Button(label = 'Toggle Flow On/Off')
-            randomize_plate_colours = Button()
-            quit_button = Button(label = 'QUIT')
-            simulate_start_button = Button(label = 'RUN')
-            simulate_stop_button = Button(label = 'STOP')
-            surface_scalar_mode = Enum('ID', 'Interaction_Stress', 'Stress')
             mayaviScene = Instance(MlabSceneModel, ())
 
+            animation_start_button = Button(label ='RUN')
+            animation_stop_button = Button(label ='STOP')
+            #animation_mode_str = Str('Animation mode : ')
+            #animation_mode_enum = Enum('Continuous', 'Batch')
+
+
+            flow_toggle = Button(label = 'Toggle Flow On/Off')
+            surface_scalar_mode_str = Str('Surface mode : ')
+            surface_scalar_mode = Enum('ID', 'Density', 'Interaction_Stress', 'Stress')
+            randomize_plate_colours = Button()
+            quit_button = Button(label = 'QUIT')
+
+
+            animationThread = None
             flowVisibility = 1.0
 
             def __init__(self, colormapRandom, colormapHeat):
@@ -676,10 +690,6 @@ if True:
                 self.mayaviScene.mlab.view(0, 90)
                 self.mayaviScene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
 
-                help(self.mayaviScene.interactor)
-                a = dir(self.mayaviScene.interactor)
-                print(a)
-
                 # Enables the detection of hotkeys.
                 #self.mayaviScene.interactor.add_observer('KeyPressEvent', self.KeyPressCallback, 9999.0)
                 #self.mayaviScene.interactor.add_observer('MouseMoveEvent', mouse_move_callback)
@@ -699,19 +709,70 @@ if True:
                 one has to add alternative code.
                 :return:
                 '''
+                #self.UpdateSurfaceScalarMode(meshScalarsNumber, scalarDensity)
+
+
                 #self.mayaviScene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
                 print(self.surface_scalar_mode)
                 if self.surface_scalar_mode is 'ID':
                     self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars = meshScalarsNumber[:, 0])
-
-                    #lut = self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
-                    #lut[:, 0:3] = customColormap
-                    #print(np.shape(lut))
-                    #self.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
                     lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
                     lut[:, 0:3] = self.colormapRandom
                     self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
                     self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (0, 255)
+
+                elif self.surface_scalar_mode is 'Density':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars=scalarDensity[:, 0])
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = colormapBrBG
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (2600, 3200)
+
+                elif self.surface_scalar_mode is 'Interaction_Stress':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars=scalarInteractionStress[:, 0])
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = self.colormapHeat
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (0, 1)
+
+                elif self.surface_scalar_mode is 'Stress':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars = scalarStress[:, 0])
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = self.colormapHeat
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (0, 1)
+
+                    #self.surfaceObj.mayaviMeshObject.mlab_source.set(colormap='gist_heat')
+
+            def UpdateSurfaceScalarMode(self, surfaceScalarsID = None, surfaceScalarDensity = None):
+                print(' ')
+                #print(np.min(scalarDensity))
+                #print(np.max(scalarDensity))
+                #if surfaceScalarsID is None:
+                #    surfaceScalarsID = meshScalarsNumber
+                #if scalardensity is not None:
+                #    scalarDensity = scalardensity
+                print('================================================================')
+                print(np.min(surfaceScalarDensity))
+                print(np.max(surfaceScalarDensity))
+                #print(scalarDensity)
+                print('================================================================')
+
+                #self.mayaviScene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+                print(self.surface_scalar_mode)
+                if self.surface_scalar_mode is 'ID':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars = surfaceScalarsID[:, 0])
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = self.colormapRandom
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (0, np.max(meshScalarsNumber))
+
+                elif self.surface_scalar_mode is 'Density':
+                    self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars=surfaceScalarDensity[:, 0])
+                    lut = self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table.to_array()
+                    lut[:, 0:3] = colormapBrBG
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.lut.table = lut
+                    self.surfaceObj.mayaviMeshObject.module_manager.scalar_lut_manager.data_range = (2600, 3200)
 
                 elif self.surface_scalar_mode is 'Interaction_Stress':
                     self.surfaceObj.mayaviMeshObject.mlab_source.set(scalars=scalarInteractionStress[:, 0])
@@ -746,17 +807,24 @@ if True:
                 self.borderObj.tubeSurface.module_manager.scalar_lut_manager.lut.table = lut
                 self.mayaviScene.mlab.draw()
 
-            def _simulate_start_button_fired(self):
+            def _animation_start_button_fired(self):
                 '''
                 The animation loop is run in a different thread, this enables the user to interact with the scene while
                 it is being animated.
                 :return:
                 '''
-                action = ThreadedAction(self.mayaviScene, self.borderObj.mesh, self.surfaceObj.mayaviMeshObject.mlab_source)
-                action.start()
+                self.runAnimation = True
+                #self.UpdateSurfaceScalarMode
+                self.animationThread = ThreadedAction(self.mayaviScene, self.borderObj.mesh, self.surfaceObj.mayaviMeshObject.mlab_source, self.runAnimation)
+                self.animationThread.start()
 
-            def _simulate_stop_button_fired(self):
-                pass
+            def _animation_stop_button_fired(self):
+                '''
+                Stops the animation.
+                :return:
+                '''
+                print('Stop button pressed')
+                self.animationThread.runAnimation = False
 
             def _flow_toggle_fired(self):
                 '''
@@ -770,12 +838,16 @@ if True:
                                                               z = (self.flowVisibility + 0.02) * world.vertices[:, 2])
 
             def _quit_button_fired(self):
+                # In case the animation is running it is shut down.
+                if self.animationThread:
+                    self.animationThread.runAnimation = False
                 quit()
 
             view = View(
                 HGroup(
-                Item('mayaviScene', height = 900, width = 1600, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
-                VGroup(VGroup('simulate_start_button', 'simulate_stop_button', label = 'Animation'), VGroup('flow_toggle', 'surface_scalar_mode', 'randomize_plate_colours', 'quit_button', label = 'Settings'))))
+                Item('mayaviScene', height = 700, width = 1100, show_label = False, editor = SceneEditor(), tooltip = 'Test tooltip message'),
+                VGroup(VGroup('animation_start_button', 'animation_stop_button', label = 'Animation', show_labels = False, show_border = True),
+                       VGroup('flow_toggle', HGroup(Item('surface_scalar_mode_str', style = 'readonly'), 'surface_scalar_mode', show_labels = False), 'randomize_plate_colours', 'quit_button', label = 'Settings', show_labels = False))))
         # resolution : 1440 * 900    mac
         # resolution : 1920 * 1080   windows
         print('>------------------------------<')

@@ -43,6 +43,9 @@ class Plate():
         self.borderVertex = None
         self.borderIndex = None
 
+        self.secondBorderPoints = None
+        self.secondBorderIndices = None
+
 
 
     def AddVertices(self, newVertices):
@@ -263,6 +266,70 @@ class Plate():
 
         if self.borderIndex is not None:
             self.borderVertex = self.vertices[self.borderIndex, :]
+        if self.secondBorderIndices is not None:
+            self.secondBorderPoints = self.vertices[self.secondBorderIndices, :]
+
+    def CheckCollision(self):
+        '''
+        KD-Trees could be used to detect close points, but since multiple points will be removed the tree would have to
+        be recalculated. The cost of recalculating the tree might be larger than the benifits gained when querying.
+        :return:
+        '''
+        for adjacentID in self.adjacentPlateIDs:
+            adjacentPlate = self.plateDictionary[adjacentID]
+            if adjacentPlate.numberOfVertices > 4:
+                particlesToRemove = []
+                result = self.secondBorderKDTree.query_ball_tree(adjacentPlate.borderKDTree, 1.2*self.world.shortestDistance)
+                for collisionParticles in result:
+                    if collisionParticles:
+                        particlesToRemove.extend(collisionParticles)
+                particlesToRemoveBorder = list(set(particlesToRemove))
+                #particlesToRemoveBorder = list(set(particlesToRemoveBorder))
+                particlesToRemoveBorder.sort(reverse = True)
+                #print('# of vertices (adjacent) : ', adjacentPlate.numberOfVertices)
+                #print(np.shape(adjacentPlate.vertices))
+                #print(particlesToRemoveBorder)
+                #print(adjacentPlate.borderIndex)
+
+                particlesToRemove = []
+                for i in particlesToRemoveBorder:
+                    particlesToRemove.append(adjacentPlate.borderIndex[i])
+                #particlesToRemove = adjacentPlate.borderIndex[particlesToRemoveBorder]
+                particlesToRemove = list(set(particlesToRemove))
+
+                particlesToKeep = list(set(range(adjacentPlate.numberOfVertices))-set(particlesToRemove))
+                #print(particlesToKeep)
+                adjacentPlate.vertices = adjacentPlate.vertices[particlesToKeep, :]
+                adjacentPlate.numberOfVertices = np.size(adjacentPlate.vertices, 0)
+
+                #print('----------------------------------------------------------------')
+                particlesToRemove.sort(reverse=True)
+                #print(adjacentPlate.borderIndex)
+                #print(particlesToRemove)
+                for iBorderRemove in particlesToRemove:
+                    #print(iBorderRemove)
+                    while iBorderRemove in adjacentPlate.borderIndex:
+                        adjacentPlate.borderIndex.remove(iBorderRemove)
+                    for i, borderID in enumerate(adjacentPlate.borderIndex):
+                        if borderID > iBorderRemove:
+                            adjacentPlate.borderIndex[i] -= 1
+                adjacentPlate.borderVertex = adjacentPlate.vertices[adjacentPlate.borderIndex, :]
+                #self.bor
+                #print(particlesToRemove)
+                #print(' ')
+                #print(' ')
+                #print(' ')
+
+                #adjacentPlate.borderIndex.remove(particlesToRemove)
+                #adjacentPlate.borderVertex = adjacentPlate.vertices[adjacentPlate.borderVertex, :]
+
+                adjacentPlate.UpdateBorderKDTree()
+                adjacentPlate.UpdateSurfaceKDTree()
+                #print(result)
+                #quit()
+
+                #adjacentPlate.borderVertex
+                #self.secondBorderPoints
 
     def NormalizeVertices(self):
         # This might be needed if the vertices drifts away from the unit sphere due to the rotation matrix.
@@ -466,6 +533,10 @@ class Plate():
 
     def UpdateBorderKDTree(self):
         self.borderKDTree = spatial.cKDTree(self.borderVertex)
+
+    def UpdateSecondBorderKDTree(self):
+        self.secondBorderKDTree = spatial.cKDTree(self.secondBorderPoints)
+
     def UpdateSurfaceKDTree(self):
         self.surfaceKDTree = spatial.cKDTree(self.vertices)
 
